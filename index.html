@@ -89,37 +89,55 @@
       return result;
     }
 
-    // Charger les TLE en ligne depuis CelesTrak via Proxy CORS
+    // Charger les TLE en ligne depuis CelesTrak avec plusieurs proxys en secours (fallback)
     async function loadCategory(catKey) {
       statusEl.textContent = "Téléchargement TLE...";
       satSelect.innerHTML = "<option>Chargement...</option>";
       
       const targetUrl = categories[catKey];
-      // Proxy pour contourner le blocage CORS sur GitHub Pages
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      
+      // Liste de proxys CORS à tester en séquence
+      const proxies = [
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`
+      ];
 
-      try {
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Erreur réseau");
-        const tleText = await response.text();
-        
-        // Limiter à 200 satellites par catégorie pour préserver les performances
-        currentSatellites = parseTLE(tleText).slice(0, 200);
+      let tleText = null;
 
-        satSelect.innerHTML = "";
-        currentSatellites.forEach((sat, idx) => {
-          const opt = document.createElement('option');
-          opt.value = idx;
-          opt.textContent = sat.name;
-          satSelect.appendChild(opt);
-        });
-
-        statusEl.textContent = `${currentSatellites.length} satellites chargés`;
-        selectSatellite(0);
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Erreur de chargement TLE";
+      for (const getProxyUrl of proxies) {
+        try {
+          const proxyUrl = getProxyUrl(targetUrl);
+          const response = await fetch(proxyUrl);
+          if (response.ok) {
+            tleText = await response.text();
+            if (tleText && tleText.includes('1 ') && tleText.includes('2 ')) {
+              break; // Succès, on sort de la boucle
+            }
+          }
+        } catch (e) {
+          console.warn("Échec proxy, tentative suivante...");
+        }
       }
+
+      if (!tleText) {
+        statusEl.textContent = "Erreur de chargement TLE (Proxys indisponibles)";
+        console.error("Impossible de récupérer les données TLE.");
+        return;
+      }
+
+      // Limiter à 200 satellites par catégorie pour préserver les performances
+      currentSatellites = parseTLE(tleText).slice(0, 200);
+
+      satSelect.innerHTML = "";
+      currentSatellites.forEach((sat, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = sat.name;
+        satSelect.appendChild(opt);
+      });
+
+      statusEl.textContent = `${currentSatellites.length} satellites chargés`;
+      selectSatellite(0);
     }
 
     function selectSatellite(index) {
