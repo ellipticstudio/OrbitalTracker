@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Suivi Orbital 2D - CelesTrak Direct</title>
+  <title>Suivi Orbital Satellites - CelesTrak</title>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,9 +15,10 @@
       position: absolute; top: 10px; left: 50px; z-index: 1000; 
       background: rgba(30, 41, 59, 0.95); padding: 14px; border-radius: 8px; 
       border: 1px solid #334155; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
     select { background: #0f172a; color: white; padding: 6px 12px; border-radius: 4px; border: 1px solid #475569; font-size: 14px; }
-    #status { font-size: 12px; color: #38bdf8; }
+    #status { font-size: 12px; color: #38bdf8; font-weight: 500; }
     #map { width: 100vw; height: 100vh; }
   </style>
 </head>
@@ -30,7 +31,7 @@
         <option value="stations">Stations Spatiales</option>
         <option value="weather">Satellites Météo</option>
         <option value="starlink">Starlink (Extrait)</option>
-        <option value="active">Satellites Actifs (Général)</option>
+        <option value="active">Satellites Actifs</option>
       </select>
     </div>
 
@@ -39,13 +40,12 @@
       <select id="sat-select"><option>Chargement...</option></select>
     </div>
 
-    <div id="status">Chargement TLE...</div>
+    <div id="status">Initialisation...</div>
   </div>
 
   <div id="map"></div>
 
   <script>
-    // Endpoints JSON natifs de CelesTrak (CORS activé par défaut)
     const categories = {
       stations: "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json",
       weather: "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=json",
@@ -69,21 +69,38 @@
     const satSelect = document.getElementById('sat-select');
     const statusEl = document.getElementById('status');
 
-    // Charger directement les données GP (General Perturbations) en JSON
+    // Récupération multi-proxys pour contourner la restriction CORS de CelesTrak
+    async function fetchCelesTrakData(targetUrl) {
+      const proxyRoutes = [
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+      ];
+
+      for (const buildProxyUrl of proxyRoutes) {
+        try {
+          const res = await fetch(buildProxyUrl(targetUrl));
+          if (res.ok) {
+            const text = await res.text();
+            // Tente de parser en JSON
+            const data = JSON.parse(text);
+            if (Array.isArray(data) && data.length > 0) return data;
+          }
+        } catch (e) {
+          console.warn("Échec route proxy, tentative suivante...");
+        }
+      }
+      throw new Error("Impossible de contourner CORS");
+    }
+
     async function loadCategory(catKey) {
-      statusEl.textContent = "Téléchargement CelesTrak Direct...";
+      statusEl.textContent = "Chargement CelesTrak...";
       satSelect.innerHTML = "<option>Chargement...</option>";
       
       const targetUrl = categories[catKey];
 
       try {
-        const response = await fetch(targetUrl);
-        if (!response.ok) throw new Error("Erreur réseau HTTP " + response.status);
-        
-        const data = await response.json();
-        
-        // Limiter à 200 satellites pour conserver une bonne fluidité d'affichage
-        currentSatellites = data.slice(0, 200);
+        const data = await fetchCelesTrakData(targetUrl);
+        currentSatellites = data.slice(0, 200); // Limite à 200 satellites
 
         satSelect.innerHTML = "";
         currentSatellites.forEach((sat, idx) => {
@@ -96,8 +113,8 @@
         statusEl.textContent = `${currentSatellites.length} satellites chargés`;
         selectSatellite(0);
       } catch (err) {
-        console.error("Erreur de récupération :", err);
-        statusEl.textContent = "Erreur d'accès à CelesTrak";
+        console.error(err);
+        statusEl.textContent = "Erreur accès CelesTrak (CORS)";
       }
     }
 
@@ -105,8 +122,6 @@
       if (!currentSatellites[index]) return;
       const sat = currentSatellites[index];
       selectedSatName = sat.OBJECT_NAME;
-      
-      // satellite.js supporte la création directe depuis l'objet JSON CelesTrak (OMM / GP data)
       selectedSatrec = satellite.jsonToSatrec(sat);
       
       drawOrbit();
