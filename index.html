@@ -28,25 +28,12 @@
       background-color: #030712; 
     }
 
-    /* Conteneur pour forcer le ratio d'aspect 2:1 strict */
-    .map-frame {
-      width: 100vw;
-      height: calc(100vw / 2);
-      max-height: 100vh;
-      max-width: calc(100vh * 2);
-      aspect-ratio: 2 / 1;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(56, 189, 248, 0.2);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
     #map { 
-      width: 100%; 
-      height: 100%; 
+      width: 100vw; 
+      height: 100vh; 
+      position: absolute;
+      top: 0;
+      left: 0;
       background-color: #080c14; 
     }
     
@@ -80,10 +67,8 @@
 </head>
 <body class="bg-slate-950 text-slate-100 flex items-center justify-center h-screen overflow-hidden relative">
 
-  <!-- Cadre Carte au Format 2x1 (360° x 180°) -->
-  <div class="map-frame">
-    <div id="map"></div>
-  </div>
+  <!-- Carte Plein Écran -->
+  <div id="map" class="w-full h-full absolute inset-0 z-0"></div>
 
   <!-- Panneau de Contrôle Principal -->
   <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
@@ -214,21 +199,20 @@
       zoomControl: false
     });
 
-    // Ajustement du cadrage au format 2x1 au chargement et au redimensionnement
-    function fit2x1View() {
+    // Ajustement du cadrage au redimensionnement
+    function handleResize() {
       map.invalidateSize();
     }
 
-    setTimeout(fit2x1View, 100);
-    window.addEventListener('resize', fit2x1View);
+    setTimeout(handleResize, 100);
+    window.addEventListener('resize', handleResize);
 
     // Contrôle de zoom en bas à droite
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Fonds de carte avec tuiles compatibles (CartoDB Dark & Esri Satellite)
-    const darkMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
+    // Fonds de carte sans clé API (Esri Dark Gray & Esri Satellite)
+    const darkMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
       maxZoom: 18,
       minZoom: 1,
       bounds: worldBounds,
