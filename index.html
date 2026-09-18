@@ -3,126 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OrbitalTracker 2D - Suivi de Flotte Satellite</title>
+  <title>OrbitalTracker 2D - Suivi Satellite en Temps Réel (CelesTrak)</title>
 
-  <!-- Tailwind CSS pour une interface soignée -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Satellite.js pour les calculs SGP4 -->
+  <!-- Satellite.js pour le calcul orbital SGP4 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/5.0.0/satellite.min.js"></script>
 
-  <!-- FontAwesome pour les icônes -->
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    /* Correction de la hauteur de la carte et du rendu Leaflet */
-    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
-    #map { width: 100vw; height: 100vh; background-color: #090d16; }
-    
-    /* Personnalisation des popups Leaflet en Mode Sombre */
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-      background: #1e293b !important;
-      color: #f8fafc !important;
-      border: 1px solid #334155;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      background-color: #080c14; 
     }
-    .leaflet-container { background: #0b0f19 !important; }
+
+    #map { 
+      width: 100vw; 
+      height: 100vh; 
+      background-color: #080c14; 
+    }
     
-    /* Scrollbar personnalisée pour le menu */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    /* Style sur-mesure pour les infobulles Leaflet */
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: #0f172a !important;
+      color: #f8fafc !important;
+      border: 1px solid #1e293b;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+      border-radius: 12px !important;
+    }
+
+    .leaflet-container { 
+      background: #080c14 !important; 
+    }
+
+    /* Animation d'onde d'impulsion pour le satellite */
+    @keyframes radar-pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.6); opacity: 0.2; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    .pulse-ring {
+      animation: radar-pulse 2s infinite ease-in-out;
+    }
+
+    /* Personnalisation des barres de défilement */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 flex flex-col h-screen overflow-hidden">
 
-  <!-- Panneau de Contrôle Flottant -->
-  <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-800 shadow-2xl transition-all duration-300">
-    <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-      <div class="flex items-center gap-2">
-        <i class="fa-solid fa-satellite-dish text-sky-400 text-lg"></i>
-        <h1 class="font-bold text-sm uppercase tracking-wider text-slate-200">OrbitalTracker 2D</h1>
+  <!-- Panneau de Contrôle Principal -->
+  <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
+    
+    <div>
+      <!-- En-tête -->
+      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-inner">
+            <i class="fa-solid fa-satellite text-lg"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-sm uppercase tracking-wider text-slate-100">OrbitalTracker 2D</h1>
+            <p class="text-[10px] text-sky-400 font-mono flex items-center gap-1">
+              <i class="fa-solid fa-earth-americas text-[9px]"></i> Source : CelesTrak Direct API
+            </p>
+          </div>
+        </div>
+        <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> CORS OK
+        </span>
       </div>
-      <span id="source-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-        Chargement...
-      </span>
-    </div>
 
-    <!-- Sélecteurs -->
-    <div class="space-y-3">
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Source de données</label>
-        <div class="flex gap-2">
-          <select id="source-provider" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition">
-            <option value="celestrak">CelesTrak (Accès Public)</option>
-            <option value="spacetrack">Space-Track.org (Compte requis)</option>
+      <!-- Sélecteur de Catégorie Satellitaire -->
+      <div class="space-y-3">
+        <div>
+          <label for="cat-select" class="block text-xs font-semibold text-slate-300 mb-1">
+            <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Catégorie de Satellites
+          </label>
+          <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
+            <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
+            <option value="weather">Satellites Météo (NOAA, GOES, MetOp...)</option>
+            <option value="starlink">Starlink (Constellation SpaceX)</option>
+            <option value="gps-ops">Navigation GPS / Galileo / GLONASS</option>
+            <option value="science">Observatoires Scientifiques (Hubble, JWST...)</option>
+            <option value="active">Flotte Globale Active</option>
           </select>
-          <button id="toggle-spacetrack-config" title="Configuration Space-Track" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg border border-slate-700 text-xs flex items-center gap-1 transition">
-            <i class="fa-solid fa-key"></i>
+        </div>
+
+        <!-- Recherche & Filtre de Satellites -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label for="sat-search" class="block text-xs font-semibold text-slate-300">
+              <i class="fa-solid fa-magnifying-glass mr-1 text-sky-400"></i> Choisir un Satellite
+            </label>
+            <span id="sat-count" class="text-[10px] text-slate-400 font-mono">0 objet</span>
+          </div>
+          
+          <input type="text" id="sat-search" placeholder="Filtrer par nom ou ID NORAD..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 mb-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition font-mono placeholder:text-slate-600">
+
+          <select id="sat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
+            <option value="">Chargement de la liste...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Télémétrie en Direct -->
+      <div id="sat-info" class="mt-4 pt-3 border-t border-slate-800/80 text-xs space-y-2 hidden">
+        <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+          <span class="text-slate-400">Identifiant NORAD :</span>
+          <span id="info-norad" class="font-mono text-slate-200 font-bold">#00000</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+            <span class="text-[10px] text-slate-400 block mb-0.5">Latitude</span>
+            <span id="info-lat" class="font-mono text-sky-400 font-bold text-xs">0.0000°</span>
+          </div>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+            <span class="text-[10px] text-slate-400 block mb-0.5">Longitude</span>
+            <span id="info-lng" class="font-mono text-sky-400 font-bold text-xs">0.0000°</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+            <span class="text-[10px] text-slate-400 block mb-0.5">Altitude</span>
+            <span id="info-alt" class="font-mono text-emerald-400 font-bold text-xs">0 km</span>
+          </div>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+            <span class="text-[10px] text-slate-400 block mb-0.5">Vitesse Orbitale</span>
+            <span id="info-vel" class="font-mono text-purple-400 font-bold text-xs">0 km/s</span>
+          </div>
+        </div>
+        <div class="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1">
+          <span>Date Époque TLE :</span>
+          <span id="info-epoch" class="font-mono text-amber-400">---</span>
+        </div>
+
+        <!-- Action rapides -->
+        <div class="pt-2 flex gap-2">
+          <button id="btn-recenter" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
+            <i class="fa-solid fa-crosshairs text-[10px]"></i> Centrer la vue
           </button>
         </div>
       </div>
-
-      <!-- Configuration Space-Track (Masquée par défaut) -->
-      <div id="spacetrack-credentials-box" class="hidden p-3 bg-slate-950/80 rounded-lg border border-sky-500/30 space-y-2">
-        <div class="text-[11px] font-semibold text-sky-400 flex items-center justify-between">
-          <span>Identifiants Space-Track.org</span>
-          <span class="text-[9px] text-slate-500">Session locale</span>
-        </div>
-        <input type="email" id="st-email" placeholder="Email Space-Track" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
-        <input type="password" id="st-password" placeholder="Mot de passe" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
-        <div class="flex justify-end gap-2 pt-1">
-          <button id="btn-save-st" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs transition">Enregistrer & Connexion</button>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Catégorie de Flotte</label>
-        <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition">
-          <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
-          <option value="weather">Satellites Météo (NOAA, GOES...)</option>
-          <option value="starlink">Starlink (Constellation)</option>
-          <option value="active">Satellites Scientifiques & GPS</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-xs font-medium text-slate-400 mb-1">Satellite Sélectionné</label>
-        <select id="sat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition">
-          <option value="">Chargement de la liste...</option>
-        </select>
-      </div>
     </div>
 
-    <!-- Informations en temps réel du satellite -->
-    <div id="sat-info" class="mt-4 pt-3 border-t border-slate-800 text-xs space-y-2 hidden">
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400">Latitude :</span>
-        <span id="info-lat" class="font-mono text-sky-400 font-bold">0.0000°</span>
-      </div>
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400">Longitude :</span>
-        <span id="info-lng" class="font-mono text-sky-400 font-bold">0.0000°</span>
-      </div>
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400">Altitude :</span>
-        <span id="info-alt" class="font-mono text-emerald-400 font-bold">0 km</span>
-      </div>
-      <div class="flex justify-between items-center">
-        <span class="text-slate-400">Vitesse :</span>
-        <span id="info-vel" class="font-mono text-purple-400 font-bold">0 km/s</span>
-      </div>
-    </div>
-
-    <!-- Status footer -->
-    <div class="mt-3 text-[11px] text-slate-500 flex items-center justify-between">
-      <span id="status-text">Initialisation...</span>
-      <span class="text-emerald-500 flex items-center gap-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> SGP4 Live
+    <!-- Status Footer -->
+    <div class="mt-4 text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2.5">
+      <span id="status-text" class="truncate pr-2">Connexion à CelesTrak...</span>
+      <span class="text-sky-400 flex items-center gap-1 font-mono text-[10px] shrink-0">
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> SGP4 Active
       </span>
     </div>
   </div>
@@ -131,239 +175,192 @@
   <div id="map"></div>
 
   <script>
-    // Données TLE de secours intégrées localement (permet le fonctionnement instantané sans CORS/Réseau)
-    const EMBEDDED_FALLBACK_DATA = {
-      stations: [
-        {
-          OBJECT_NAME: "ISS (ZARYA)",
-          TLE_LINE1: "1 25544U 98067A   24080.52843720  .00015523  00000+0  27572-3 0  9993",
-          TLE_LINE2: "2 25544  51.6416 288.4239 0004381 122.2514 308.1751 15.49814420445098"
-        },
-        {
-          OBJECT_NAME: "CSS (TIANGONG)",
-          TLE_LINE1: "1 48274U 21035A   24080.56023306  .00012831  00000+0  14713-3 0  9994",
-          TLE_LINE2: "2 48274  41.4729 181.2587 0006233 227.1824 233.1592 15.60228308167814"
-        }
-      ],
-      weather: [
-        {
-          OBJECT_NAME: "NOAA 19",
-          TLE_LINE1: "1 33591U 09005A   24080.51130752  .00000072  00000+0  63421-4 0  9998",
-          TLE_LINE2: "2 33591  98.7042 101.4820 0013821 167.3524 192.8105 14.12467355778811"
-        },
-        {
-          OBJECT_NAME: "METOP-B",
-          TLE_LINE1: "1 38771U 12049A   24080.45028020  .00000012  00000+0  24503-4 0  9991",
-          TLE_LINE2: "2 38771  98.7073  89.4320 0001235  96.5321 263.6021 14.21482012592031"
-        }
-      ],
-      starlink: [
-        {
-          OBJECT_NAME: "STARLINK-1007",
-          TLE_LINE1: "1 44713U 19074A   24080.40000000  .00001000  00000+0  80000-4 0  9999",
-          TLE_LINE2: "2 44713  53.0500 120.1000 0001000  90.0000 270.0000 15.06000000100000"
-        },
-        {
-          OBJECT_NAME: "STARLINK-30121",
-          TLE_LINE1: "1 58000U 23150A   24080.50000000  .00001500  00000+0  90000-4 0  9999",
-          TLE_LINE2: "2 58000  53.1600 210.3000 0001200  80.0000 280.0000 15.02000000100000"
-        }
-      ],
-      active: [
-        {
-          OBJECT_NAME: "HUBBLE SPACE TELESCOPE",
-          TLE_LINE1: "1 20580U 90037B   24080.41249712  .00001284  00000+0  68912-4 0  9992",
-          TLE_LINE2: "2 20580  28.4688 248.8354 0002829  93.7544 266.3683 15.09289131862143"
-        },
-        {
-          OBJECT_NAME: "GPS BIIR-2 (PRN 13)",
-          TLE_LINE1: "1 24876U 97035A   24080.35000000 -.00000060  00000+0  00000+0 0  9991",
-          TLE_LINE2: "2 24876  55.2000 150.0000 0050000  40.0000 320.0000  2.00560000100000"
-        }
-      ]
-    };
-
-    // URLs des flux de données orbitales TLE
-    const ORBITAL_DATA_URLS = {
+    // Endpoints CelesTrak Direct (API publique avec support CORS native)
+    const CELESTRAK_ENDPOINTS = {
       stations: "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json",
       weather: "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=json",
       starlink: "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json",
+      "gps-ops": "https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=json",
+      science: "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=json",
       active: "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json"
     };
-  </script>
 
-  <script>
-    // Initialisation de la carte Leaflet avec la couche sombre CartoDB DarkMatter
+    // Initialisation de la carte Leaflet
     const map = L.map('map', {
       center: [20, 0],
       zoom: 2.5,
       zoomControl: false
     });
 
-    // Invalidation de la taille de la carte pour assurer le bon rendu complet
-    setTimeout(() => { map.invalidateSize(); }, 200);
+    // Ajustement de la taille de la carte sur redimensionnement
+    setTimeout(() => map.invalidateSize(), 200);
     window.addEventListener('resize', () => map.invalidateSize());
 
-    // Bouton de zoom repositionné
+    // Contrôle de zoom en bas à droite
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Tuiles ESRI Dark Gray Canvas (Totalement gratuit et sans clé API)
-    const darkTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    // Fonds de carte ESRI sans clé API
+    const darkMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
       maxZoom: 16
     }).addTo(map);
 
-    // Couche ESRI World Imagery (Vue Satellite)
-    const satelliteTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+    const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
     });
 
-    // Sélecteur de fonds de carte (en haut à droite)
     L.control.layers({
-      "Carte Sombre": darkTiles,
-      "Vue Satellite": satelliteTiles
+      "Mode Sombre": darkMap,
+      "Vue Satellite": satelliteMap
     }, null, { position: 'topright' }).addTo(map);
 
-    // Icône personnalisée de satellite
+    // Icône personnalisée pour le satellite avec animation radar
     const satIcon = L.divIcon({
       className: 'custom-sat-icon',
       html: `
         <div class="relative flex items-center justify-center">
-          <span class="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-sky-400 opacity-40"></span>
-          <div class="w-6 h-6 bg-slate-900 border-2 border-sky-400 rounded-full flex items-center justify-center text-sky-400 shadow-lg shadow-sky-500/50">
-            <i class="fa-solid fa-satellite text-[10px]"></i>
+          <span class="pulse-ring absolute inline-flex h-8 w-8 rounded-full bg-sky-400 opacity-50"></span>
+          <div class="w-7 h-7 bg-slate-900 border-2 border-sky-400 rounded-full flex items-center justify-center text-sky-400 shadow-xl shadow-sky-500/50 relative z-10">
+            <i class="fa-solid fa-satellite text-[11px]"></i>
           </div>
         </div>
       `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
     });
 
-    // Variables d'état
+    // Variables d'état global
     let currentSatellites = [];
+    let filteredSatellites = [];
     let selectedSatrec = null;
     let selectedSatName = "";
+    let selectedNoradId = "";
+    let selectedEpoch = "";
     let marker = null;
     let orbitLines = [];
-    let spacetrackCredentials = { identity: "", password: "" };
 
-    // Références DOM
+    // Éléments du DOM
     const catSelect = document.getElementById('cat-select');
+    const satSearch = document.getElementById('sat-search');
     const satSelect = document.getElementById('sat-select');
+    const satCount = document.getElementById('sat-count');
     const statusEl = document.getElementById('status-text');
-    const sourceBadge = document.getElementById('source-badge');
     const satInfoDiv = document.getElementById('sat-info');
+    const btnRecenter = document.getElementById('btn-recenter');
 
-    // Récupération Résiliente Multi-Sources
-    async function fetchSatelliteData(catKey) {
-      const targetUrl = ORBITAL_DATA_URLS[catKey];
-      
-      // Essai 1 : Accès Direct au Serveur de Données
+    // Chargement des données GP/TLE depuis CelesTrak Direct
+    async function loadCategoryData(catKey) {
+      statusEl.textContent = "Téléchargement direct depuis CelesTrak...";
+      satSelect.innerHTML = "<option value=''>Chargement des données...</option>";
+      satCount.textContent = "0 objet";
+      satSearch.value = "";
+
+      const url = CELESTRAK_ENDPOINTS[catKey] || CELESTRAK_ENDPOINTS.stations;
+
       try {
-        const response = await fetch(targetUrl, { cache: 'no-cache' });
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setSourceBadge('Flux Direct', 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30');
-            return data;
-          }
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Erreur réseau HTTP ${response.status}`);
         }
-      } catch (e) {
-        console.warn("Échec de la requête directe, tentative via serveurs relais...");
-      }
 
-      // Essai 2 : Serveurs de secours
-      const proxies = [
-        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
-      ];
-
-      for (const proxyGen of proxies) {
-        try {
-          const proxyUrl = proxyGen(targetUrl);
-          const response = await fetch(proxyUrl);
-          if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data) && data.length > 0) {
-              setSourceBadge('Flux Relais', 'bg-sky-500/20 text-sky-300 border-sky-500/30');
-              return data;
-            }
-          }
-        } catch (err) {
-          console.warn("Échec du relais, tentative suivante...");
+        const data = await response.json();
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("Aucun satellite trouvé dans la réponse");
         }
-      }
 
-      // Essai 3 : Repli total sur la base TLE embarquée locale
-      console.warn("Utilisation de la base de données TLE locale embarquée.");
-      setSourceBadge('Mode Local', 'bg-amber-500/20 text-amber-300 border-amber-500/30');
-      return EMBEDDED_FALLBACK_DATA[catKey] || EMBEDDED_FALLBACK_DATA.stations;
-    }
-
-    function setSourceBadge(text, classes) {
-      sourceBadge.textContent = text;
-      sourceBadge.className = `text-[10px] px-2 py-0.5 rounded-full border ${classes}`;
-    }
-
-    // Chargement de la catégorie sélectionnée
-    async function loadCategory(catKey) {
-      statusEl.textContent = "Téléchargement données...";
-      satSelect.innerHTML = "<option>Chargement...</option>";
-      
-      try {
-        const data = await fetchSatelliteData(catKey);
-        currentSatellites = data.slice(0, 300); // Limite à 300 satellites
-
-        satSelect.innerHTML = "";
-        currentSatellites.forEach((sat, idx) => {
-          const opt = document.createElement('option');
-          opt.value = idx;
-          opt.textContent = sat.OBJECT_NAME || sat.name || `Satellite ${idx+1}`;
-          satSelect.appendChild(opt);
-        });
-
-        statusEl.textContent = `${currentSatellites.length} satellites prêts`;
+        currentSatellites = data;
+        filteredSatellites = data;
+        
+        renderSatelliteOptions(filteredSatellites);
+        statusEl.textContent = `${data.length} satellites reçus via CelesTrak`;
+        
+        // Sélection par défaut du premier satellite
         selectSatellite(0);
       } catch (err) {
-        console.error("Erreur globale :", err);
-        statusEl.textContent = "Erreur d'initialisation";
+        console.error("Erreur CelesTrak :", err);
+        satSelect.innerHTML = "<option value=''>Erreur de chargement</option>";
+        statusEl.textContent = "Échec du téléchargement CelesTrak";
       }
     }
 
-    // Sélection d'un satellite dans la liste
-    function selectSatellite(index) {
-      if (!currentSatellites[index]) return;
-      const sat = currentSatellites[index];
-      selectedSatName = sat.OBJECT_NAME || sat.name || sat.NAME || `Satellite ${parseInt(index) + 1}`;
+    // Rendu des options de sélection de satellite avec filtre
+    function renderSatelliteOptions(satList) {
+      satSelect.innerHTML = "";
+      satCount.textContent = `${satList.length} objet${satList.length > 1 ? 's' : ''}`;
 
-      // Extraire les deux lignes TLE de manière sécurisée quel que soit le format de la propriété
-      const line1 = sat.TLE_LINE1 || sat.tle1 || sat.line1 || sat.LINE1;
-      const line2 = sat.TLE_LINE2 || sat.tle2 || sat.line2 || sat.LINE2;
+      if (satList.length === 0) {
+        satSelect.innerHTML = "<option value=''>Aucun résultat trouvé</option>";
+        return;
+      }
+
+      satList.forEach((sat, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const name = sat.OBJECT_NAME || sat.SATNAME || "Objet Inconnu";
+        const norad = sat.NORAD_CAT_ID || "N/A";
+        opt.textContent = `${name} (#${norad})`;
+        satSelect.appendChild(opt);
+      });
+    }
+
+    // Filtrer la liste des satellites par champ de recherche
+    satSearch.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        filteredSatellites = currentSatellites;
+      } else {
+        filteredSatellites = currentSatellites.filter(sat => {
+          const name = (sat.OBJECT_NAME || sat.SATNAME || "").toLowerCase();
+          const norad = String(sat.NORAD_CAT_ID || "");
+          return name.includes(query) || norad.includes(query);
+        });
+      }
+      renderSatelliteOptions(filteredSatellites);
+      if (filteredSatellites.length > 0) {
+        selectSatellite(0);
+      }
+    });
+
+    // Sélection d'un satellite spécifique
+    function selectSatellite(filterIndex) {
+      if (!filteredSatellites[filterIndex]) return;
+      const sat = filteredSatellites[filterIndex];
+
+      selectedSatName = sat.OBJECT_NAME || sat.SATNAME || "Satellite Inconnu";
+      selectedNoradId = sat.NORAD_CAT_ID || "N/A";
+      selectedEpoch = sat.EPOCH || "N/A";
+
+      // Extraction des lignes TLE 1 et 2
+      const line1 = sat.TLE_LINE1 || sat.tle1 || sat.LINE1;
+      const line2 = sat.TLE_LINE2 || sat.tle2 || sat.LINE2;
 
       if (line1 && line2) {
         try {
           selectedSatrec = satellite.twoline2satrec(line1.trim(), line2.trim());
         } catch (err) {
-          console.error("Erreur de décodage TLE :", err);
+          console.error("Erreur de parsing TLE SGP4 :", err);
           selectedSatrec = null;
         }
       } else {
-        console.warn("Données TLE introuvables pour ce satellite :", sat);
         selectedSatrec = null;
       }
 
       if (!selectedSatrec) {
         satInfoDiv.classList.add('hidden');
-        statusEl.textContent = "Données TLE invalides";
+        statusEl.textContent = "Format TLE invalide pour ce satellite";
         return;
       }
 
+      document.getElementById('info-norad').textContent = `#${selectedNoradId}`;
+      document.getElementById('info-epoch').textContent = selectedEpoch;
+
       satInfoDiv.classList.remove('hidden');
       drawOrbit();
-      updatePosition(true); // Recentrer la carte sur le satellite sélectionné
+      updatePosition(true);
     }
 
-    // Calcul SGP4 pour une date donnée avec validation stricte
+    // Calcul SGP4 sécurisé à une date donnée (évite les valeurs NaN)
     function getSatelliteStateAt(satrec, date) {
       try {
         if (!satrec) return null;
@@ -373,7 +370,6 @@
         const pos = positionAndVelocity.position;
         const vel = positionAndVelocity.velocity;
 
-        // Vérification de la validité des coordonnées numériques
         if (!isFinite(pos.x) || !isFinite(pos.y) || !isFinite(pos.z)) return null;
 
         const gmst = satellite.gstime(date);
@@ -390,13 +386,13 @@
 
         return { lat, lng, alt, speed };
       } catch (err) {
-        console.error("Erreur SGP4 propagation:", err);
         return null;
       }
     }
 
-    // Tracé de l'orbite au sol (90 minutes futures)
+    // Tracer la trajectoire orbitale au sol (90 minutes futures)
     function drawOrbit() {
+      // Effacer les anciennes lignes
       orbitLines.forEach(line => map.removeLayer(line));
       orbitLines = [];
       if (!selectedSatrec) return;
@@ -410,9 +406,9 @@
         const pos = getSatelliteStateAt(selectedSatrec, futureTime);
 
         if (pos) {
+          // Gestion du franchissement du méridien de 180° pour éviter le trait de traversée
           if (currentSegment.length > 0) {
             const prevLng = currentSegment[currentSegment.length - 1][1];
-            // Anti-meridian wrap prevention (-180 / +180 deg)
             if (Math.abs(pos.lng - prevLng) > 180) {
               segments.push(currentSegment);
               currentSegment = [];
@@ -423,34 +419,32 @@
       }
       if (currentSegment.length > 0) segments.push(currentSegment);
 
-      // Dessin des segments polynomiaux pointillés
+      // Dessiner chaque segment sur la carte
       segments.forEach(segment => {
         if (segment.length > 1) {
           const polyline = L.polyline(segment, { 
             color: '#38bdf8', 
             weight: 2, 
             dashArray: '6, 6',
-            opacity: 0.8 
+            opacity: 0.85 
           }).addTo(map);
           orbitLines.push(polyline);
         }
       });
     }
 
-    // Mise à jour de la position courante (1 seconde)
+    // Mise à jour de la position du satellite en temps réel
     function updatePosition(autoCenter = false) {
       if (!selectedSatrec) return;
       const now = new Date();
       const state = getSatelliteStateAt(selectedSatrec, now);
 
       if (state) {
-        // Mise à jour de l'affichage du panneau d'information
         document.getElementById('info-lat').textContent = `${state.lat.toFixed(4)}°`;
         document.getElementById('info-lng').textContent = `${state.lng.toFixed(4)}°`;
         document.getElementById('info-alt').textContent = `${state.alt.toFixed(1)} km`;
         document.getElementById('info-vel').textContent = `${state.speed.toFixed(2)} km/s`;
 
-        // Repositionnement du Marker sur la carte
         if (!marker) {
           marker = L.marker([state.lat, state.lng], { icon: satIcon }).addTo(map);
         } else {
@@ -458,27 +452,37 @@
         }
 
         if (autoCenter) {
-          map.panTo([state.lat, state.lng]);
+          map.panTo([state.lat, state.lng], { animate: true, duration: 0.8 });
         }
 
         marker.bindPopup(`
-          <div class="p-1">
+          <div class="p-1 font-sans">
             <h3 class="font-bold text-sky-400 text-sm mb-1">${selectedSatName}</h3>
+            <p class="text-xs text-slate-300">NORAD ID : <b>#${selectedNoradId}</b></p>
             <p class="text-xs text-slate-300">Altitude : <b>${state.alt.toFixed(1)} km</b></p>
             <p class="text-xs text-slate-300">Vitesse : <b>${state.speed.toFixed(2)} km/s</b></p>
+            <p class="text-[10px] text-slate-400 mt-2 font-mono border-t border-slate-800 pt-1">Propagation SGP4 - Temps Réel</p>
           </div>
         `);
       }
     }
 
     // Événements d'interaction
-    catSelect.addEventListener('change', (e) => loadCategory(e.target.value));
+    catSelect.addEventListener('change', (e) => loadCategoryData(e.target.value));
     satSelect.addEventListener('change', (e) => selectSatellite(e.target.value));
 
-    // Démarrage initial
-    loadCategory('stations');
+    btnRecenter.addEventListener('click', () => {
+      if (marker) {
+        map.panTo(marker.getLatLng(), { animate: true, duration: 0.8 });
+      }
+    });
 
-    // Boucle de mise à jour paramétrée à 1000 ms (1 seconde)
+    // Lancement au chargement de la page
+    window.addEventListener('DOMContentLoaded', () => {
+      loadCategoryData('stations');
+    });
+
+    // Boucle de mise à jour en temps réel (chaque seconde)
     setInterval(() => updatePosition(false), 1000);
   </script>
 </body>
