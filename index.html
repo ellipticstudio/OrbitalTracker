@@ -95,17 +95,49 @@
       <!-- Sélecteur de Catégorie Satellitaire -->
       <div class="space-y-3">
         <div>
-          <label for="cat-select" class="block text-xs font-semibold text-slate-300 mb-1">
-            <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Catégorie de Satellites
-          </label>
-          <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
-            <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
-            <option value="weather">Satellites Météo (NOAA, GOES, MetOp...)</option>
-            <option value="starlink">Starlink (Constellation SpaceX)</option>
-            <option value="gps-ops">Navigation GPS / Galileo / GLONASS</option>
-            <option value="science">Observatoires Scientifiques (Hubble, JWST...)</option>
-            <option value="active">Flotte Globale Active</option>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="mode-select" class="block text-xs font-semibold text-slate-300">
+              <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Mode de Sélection
+            </label>
+            <button id="btn-open-modal" class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 font-semibold hover:underline">
+              <i class="fa-solid fa-gear"></i> Gérer mes familles
+            </button>
+          </div>
+
+          <!-- Selecteur Source : CelesTrak / Familles Perso -->
+          <select id="mode-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 mb-2 font-medium">
+            <optgroup label="Sources prédéfinies">
+              <option value="celestrak">Catégories CelesTrak (Standard)</option>
+            </optgroup>
+            <optgroup label="Vos Familles">
+              <option value="custom">Mes Catégories Personnalisées</option>
+            </optgroup>
           </select>
+
+          <!-- Selecteur dynamique de la catégorie active -->
+          <div id="container-cat-select">
+            <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
+              <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
+              <option value="weather">Satellites Météo (NOAA, GOES...)</option>
+              <option value="starlink">Starlink (SpaceX)</option>
+              <option value="gps-ops">Navigation GPS / Galileo</option>
+              <option value="science">Observatoires (Hubble, JWST...)</option>
+              <option value="active">Flotte Globale Active</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Recherche directe par NORAD ID Rapide -->
+        <div class="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/80">
+          <label class="block text-[11px] font-semibold text-slate-300 mb-1">
+            <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Recherche Rapide par NORAD ID
+          </label>
+          <div class="flex gap-1.5">
+            <input type="number" id="quick-norad-input" placeholder="Ex: 25544, 20580..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono">
+            <button id="btn-quick-fetch" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
         </div>
 
         <!-- Recherche & Filtre de Satellites -->
@@ -162,6 +194,14 @@
             <i class="fa-solid fa-earth-americas text-[10px]"></i> Centrer sur (0°, 0°)
           </button>
         </div>
+
+        <!-- Option de Grille Lat/Lng -->
+        <div class="pt-2 mt-2 border-t border-slate-800/80 flex items-center justify-between">
+          <label for="toggle-grid" class="text-xs text-slate-300 flex items-center gap-2 cursor-pointer select-none">
+            <i class="fa-solid fa-border-all text-sky-400"></i> Grille Lat/Lng (15°)
+          </label>
+          <input type="checkbox" id="toggle-grid" class="w-4 h-4 accent-sky-500 rounded cursor-pointer" checked>
+        </div>
       </div>
     </div>
 
@@ -171,6 +211,44 @@
       <span class="text-sky-400 flex items-center gap-1 font-mono text-[10px] shrink-0">
         <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> SGP4 Active
       </span>
+    </div>
+  </div>
+
+  <!-- Modal de Gestion des Catégories Personnalisées -->
+  <div id="custom-cat-modal" class="fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-sky-400"></i> Vos Familles Personnalisées
+        </h3>
+        <button id="btn-close-modal" class="text-slate-400 hover:text-slate-100 transition text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Formulaire d'ajout/édition -->
+      <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nom de la famille</label>
+          <input type="text" id="custom-cat-name" placeholder="Ex: Mes Observatoires Favoris" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Identifiants NORAD (séparés par des virgules)</label>
+          <input type="text" id="custom-cat-ids" placeholder="Ex: 25544, 20580, 48274, 43013" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-mono">
+          <p class="text-[10px] text-slate-400 mt-1">Exemples : ISS (#25544), Hubble (#20580), Tiangong (#48274), NOAA-20 (#43013)</p>
+        </div>
+        <button id="btn-save-custom-cat" class="w-full py-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 shadow">
+          <i class="fa-solid fa-plus"></i> Ajouter / Enregistrer la Famille
+        </button>
+      </div>
+
+      <!-- Liste des familles enregistrées -->
+      <div>
+        <h4 class="text-xs font-semibold text-slate-300 mb-2">Familles Enregistrées :</h4>
+        <div id="custom-cat-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <!-- Injecté dynamiquement -->
+        </div>
+      </div>
     </div>
   </div>
 
@@ -184,6 +262,18 @@
       science: "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
       active: "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
     };
+
+    // Familles personnalisées par défaut
+    const DEFAULT_CUSTOM_CATEGORIES = [
+      {
+        id: "cat_perso_1",
+        name: "⭐ Ma Sélection VIP",
+        norads: ["25544", "20580", "48274", "43013"] // ISS, Hubble, Tiangong, NOAA 20
+      }
+    ];
+
+    // Chargement ou initialisation dans LocalStorage
+    let customCategories = JSON.parse(localStorage.getItem('orbit_custom_categories')) || DEFAULT_CUSTOM_CATEGORIES;
 
     // Limites de la carte du monde (-90°, -180°) à (90°, 180°)
     const worldBounds = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
@@ -256,15 +346,266 @@
     let selectedEpoch = "";
     let marker = null;
     let orbitLines = [];
+    let graticuleLayer = null;
 
     // Éléments du DOM
     const catSelect = document.getElementById('cat-select');
+    const modeSelect = document.getElementById('mode-select');
     const satSearch = document.getElementById('sat-search');
     const satSelect = document.getElementById('sat-select');
     const satCount = document.getElementById('sat-count');
     const statusEl = document.getElementById('status-text');
     const satInfoDiv = document.getElementById('sat-info');
     const btnRecenter = document.getElementById('btn-recenter');
+    const toggleGrid = document.getElementById('toggle-grid');
+
+    // Modaux et Custom Categories
+    const modal = document.getElementById('custom-cat-modal');
+    const btnOpenModal = document.getElementById('btn-open-modal');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const btnSaveCustomCat = document.getElementById('btn-save-custom-cat');
+    const customCatNameInput = document.getElementById('custom-cat-name');
+    const customCatIdsInput = document.getElementById('custom-cat-ids');
+    const customCatListContainer = document.getElementById('custom-cat-list');
+    const quickNoradInput = document.getElementById('quick-norad-input');
+    const btnQuickFetch = document.getElementById('btn-quick-fetch');
+
+    // Récupérer la TLE d'une liste de NORAD IDs via l'API CelesTrak
+    async function fetchTLEsByNoradList(noradArray, label = "Famille Perso") {
+      statusEl.textContent = `Téléchargement des satellites (${noradArray.length})...`;
+      satSelect.innerHTML = "<option value=''>Chargement des NORAD ID...</option>";
+      satCount.textContent = "0 objet";
+      satSearch.value = "";
+
+      const uniqueIds = [...new Set(noradArray.map(id => String(id).trim()).filter(Boolean))];
+      if (uniqueIds.length === 0) {
+        statusEl.textContent = "Aucun NORAD ID valide fourni";
+        satSelect.innerHTML = "<option value=''>Liste vide</option>";
+        return;
+      }
+
+      let parsedSatellites = [];
+
+      // Interrogation par lot de NORAD ID via CelesTrak CATNR
+      for (let i = 0; i < uniqueIds.length; i++) {
+        const id = uniqueIds[i];
+        statusEl.textContent = `Récupération NORAD #${id} (${i + 1}/${uniqueIds.length})...`;
+        const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${id}&FORMAT=tle`;
+
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const text = await res.text();
+            const sats = parseTLEText(text);
+            if (sats.length > 0) {
+              parsedSatellites.push(...sats);
+            }
+          }
+        } catch (err) {
+          console.warn(`Erreur lors du chargement pour NORAD #${id}:`, err);
+        }
+      }
+
+      if (parsedSatellites.length === 0) {
+        statusEl.textContent = "Aucun satellite trouvé pour ces identifiants NORAD";
+        satSelect.innerHTML = "<option value=''>Aucun résultat CelesTrak</option>";
+        return;
+      }
+
+      currentSatellites = parsedSatellites;
+      filteredSatellites = parsedSatellites;
+      
+      renderSatelliteOptions(filteredSatellites);
+      statusEl.textContent = `${parsedSatellites.length} satellite(s) chargé(s) dans ${label}`;
+      selectSatellite(0);
+    }
+
+    function saveCustomCategoriesToStorage() {
+      localStorage.setItem('orbit_custom_categories', JSON.stringify(customCategories));
+    }
+
+    function renderCategoryDropdown(targetCatId = null) {
+      const mode = modeSelect.value;
+      catSelect.innerHTML = "";
+
+      if (mode === 'celestrak') {
+        catSelect.innerHTML = `
+          <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
+          <option value="weather">Satellites Météo (NOAA, GOES...)</option>
+          <option value="starlink">Starlink (SpaceX)</option>
+          <option value="gps-ops">Navigation GPS / Galileo</option>
+          <option value="science">Observatoires (Hubble, JWST...)</option>
+          <option value="active">Flotte Globale Active</option>
+        `;
+        if (targetCatId) catSelect.value = targetCatId;
+        loadCategoryData(catSelect.value);
+      } else {
+        if (customCategories.length === 0) {
+          catSelect.innerHTML = "<option value=''>Aucune famille créée</option>";
+          statusEl.textContent = "Créez une famille personnalisée via le bouton Gérer";
+          return;
+        }
+
+        customCategories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.id;
+          opt.textContent = `${cat.name} (${cat.norads.length} sats)`;
+          catSelect.appendChild(opt);
+        });
+
+        // Charger la catégorie cible ou la première catégorie sur-mesure
+        const targetCat = customCategories.find(c => c.id === targetCatId) || customCategories[0];
+        if (targetCat) {
+          catSelect.value = targetCat.id;
+          fetchTLEsByNoradList(targetCat.norads, targetCat.name);
+        }
+      }
+    }
+
+    function renderCustomCatListModal() {
+      customCatListContainer.innerHTML = "";
+      if (customCategories.length === 0) {
+        customCatListContainer.innerHTML = "<p class='text-xs text-slate-500 italic'>Aucune catégorie personnalisée enregistrée.</p>";
+        return;
+      }
+
+      customCategories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs";
+        item.innerHTML = `
+          <div>
+            <div class="font-bold text-slate-200">${cat.name}</div>
+            <div class="text-[10px] text-sky-400 font-mono truncate max-w-[240px]">NORADs: ${cat.norads.join(', ')}</div>
+          </div>
+          <button data-id="${cat.id}" class="btn-del-cat px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 rounded text-[10px] transition">
+            <i class="fa-solid fa-trash"></i> Supprimer
+          </button>
+        `;
+        customCatListContainer.appendChild(item);
+      });
+
+      // Attacher les événements de suppression
+      document.querySelectorAll('.btn-del-cat').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const catId = e.currentTarget.getAttribute('data-id');
+          customCategories = customCategories.filter(c => c.id !== catId);
+          saveCustomCategoriesToStorage();
+          renderCustomCatListModal();
+          renderCategoryDropdown();
+        });
+      });
+    }
+
+    // Modal Handlers
+    btnOpenModal.addEventListener('click', () => {
+      renderCustomCatListModal();
+      modal.classList.remove('hidden');
+    });
+
+    btnCloseModal.addEventListener('click', () => modal.classList.add('hidden'));
+
+    btnSaveCustomCat.addEventListener('click', () => {
+      const name = customCatNameInput.value.trim();
+      const rawIds = customCatIdsInput.value.trim();
+
+      if (!name || !rawIds) {
+        statusEl.textContent = "Veuillez spécifier un nom et au moins un identifiant NORAD";
+        return;
+      }
+
+      const norads = rawIds.split(',').map(s => s.trim()).filter(Boolean);
+      const newCat = {
+        id: "cat_perso_" + Date.now(),
+        name: name,
+        norads: norads
+      };
+
+      customCategories.push(newCat);
+      saveCustomCategoriesToStorage();
+
+      customCatNameInput.value = "";
+      customCatIdsInput.value = "";
+
+      renderCustomCatListModal();
+      modeSelect.value = "custom";
+      renderCategoryDropdown(newCat.id);
+      modal.classList.add('hidden');
+    });
+
+    // Recherche Rapide Directe par NORAD ID
+    btnQuickFetch.addEventListener('click', () => {
+      const id = quickNoradInput.value.trim();
+      if (id) {
+        fetchTLEsByNoradList([id], `NORAD #${id}`);
+      }
+    });
+
+    // Événements de sélection
+    modeSelect.addEventListener('change', () => renderCategoryDropdown());
+
+    catSelect.addEventListener('change', (e) => {
+      if (modeSelect.value === 'celestrak') {
+        loadCategoryData(e.target.value);
+      } else {
+        const found = customCategories.find(c => c.id === e.target.value);
+        if (found) {
+          fetchTLEsByNoradList(found.norads, found.name);
+        }
+      }
+    });
+
+    // Créer la couche de graticule / grille de latitude & longitude
+    function createGraticuleLayer() {
+      const layerGroup = L.layerGroup();
+
+      // Lignes de Latitude (tous les 15°)
+      for (let lat = -75; lat <= 75; lat += 15) {
+        const isEquator = (lat === 0);
+        const polyline = L.polyline([
+          [lat, -180],
+          [lat, 180]
+        ], {
+          color: isEquator ? '#38bdf8' : '#475569',
+          weight: isEquator ? 1.5 : 0.75,
+          dashArray: isEquator ? null : '4, 4',
+          opacity: isEquator ? 0.8 : 0.4,
+          interactive: false
+        });
+        layerGroup.addLayer(polyline);
+      }
+
+      // Lignes de Longitude (tous les 15°)
+      for (let lng = -180; lng <= 180; lng += 15) {
+        const isMeridian = (lng === 0);
+        const polyline = L.polyline([
+          [-85, lng],
+          [85, lng]
+        ], {
+          color: isMeridian ? '#38bdf8' : '#475569',
+          weight: isMeridian ? 1.5 : 0.75,
+          dashArray: isMeridian ? null : '4, 4',
+          opacity: isMeridian ? 0.8 : 0.4,
+          interactive: false
+        });
+        layerGroup.addLayer(polyline);
+      }
+
+      return layerGroup;
+    }
+
+    // Initialiser et afficher la grille par défaut
+    graticuleLayer = createGraticuleLayer().addTo(map);
+
+    // Événement pour afficher/masquer la grille
+    if (toggleGrid) {
+      toggleGrid.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          map.addLayer(graticuleLayer);
+        } else {
+          map.removeLayer(graticuleLayer);
+        }
+      });
+    }
 
     // Parseur de données TLE texte brut vers objets structurés
     function parseTLEText(tleText) {
@@ -516,7 +857,6 @@
     }
 
     // Événements d'interaction
-    catSelect.addEventListener('change', (e) => loadCategoryData(e.target.value));
     satSelect.addEventListener('change', (e) => selectSatellite(e.target.value));
 
     btnRecenter.addEventListener('click', () => {
