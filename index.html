@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OrbitalTracker 2D - Suivi Satellite en Temps Réel (CelesTrak)</title>
+  <title>OrbitalTracker 2D - Suivi Satellite en Temps Réel</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -29,15 +29,12 @@
     }
 
     #map { 
-      width: 100vw; 
-      height: 100vh; 
-      position: absolute;
-      top: 0;
-      left: 0;
+      width: 100%; 
+      height: 100%; 
       background-color: #080c14; 
     }
     
-    /* Style sur-mesure pour les infobulles Leaflet */
+    /* Infobulles Leaflet */
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
       background: #0f172a !important;
       color: #f8fafc !important;
@@ -50,7 +47,7 @@
       background: #080c14 !important; 
     }
 
-    /* Animation d'onde d'impulsion pour le satellite */
+    /* Animation radar pour l'icône du satellite */
     @keyframes radar-pulse {
       0% { transform: scale(0.95); opacity: 0.8; }
       50% { transform: scale(1.6); opacity: 0.2; }
@@ -61,14 +58,46 @@
       animation: radar-pulse 2s infinite ease-in-out;
     }
 
-    /* Personnalisation des barres de défilement */
+    /* Webkit Scrollbar */
     ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 4px; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 flex items-center justify-center h-screen overflow-hidden relative">
 
   <!-- Carte Plein Écran -->
   <div id="map" class="w-full h-full absolute inset-0 z-0"></div>
+
+  <!-- Sélecteur de Fond de Carte - Icône en Haut à Droite -->
+  <div class="absolute top-4 right-4 z-[1000] flex flex-col items-end">
+    <button id="btn-map-style-toggle" title="Changer de fond de carte" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-amber-400 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex items-center justify-center transition-all duration-200 active:scale-95 group">
+      <i class="fa-solid fa-layer-group text-lg group-hover:scale-110 transition-transform"></i>
+    </button>
+    
+    <!-- Menu Flottant de Sélection des Fonds de Carte -->
+    <div id="map-style-menu" class="hidden mt-2 w-64 bg-slate-900/95 backdrop-blur-md p-3 rounded-2xl border border-slate-800 shadow-2xl space-y-1.5 transition-all">
+      <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2 px-1 flex items-center gap-2 border-b border-slate-800 pb-2">
+        <i class="fa-solid fa-map text-amber-400"></i> Choisir le Fond de Carte
+      </div>
+      <button data-style="esri-dark" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 flex items-center justify-between transition">
+        <span>Esri World Dark Gray</span>
+        <i class="fa-solid fa-check text-[10px] check-icon"></i>
+      </button>
+      <button data-style="esri-satellite" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
+        <span>Esri Vue Satellite</span>
+        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
+      </button>
+      <button data-style="carto-dark" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
+        <span>CartoDB Dark</span>
+        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
+      </button>
+      <button data-style="osm-standard" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
+        <span>OpenStreetMap Standard</span>
+        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
+      </button>
+    </div>
+  </div>
 
   <!-- Panneau de Contrôle Principal -->
   <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
@@ -87,60 +116,52 @@
             </p>
           </div>
         </div>
-        <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> CORS OK
+        <span id="badge-connection" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Connecté
         </span>
       </div>
 
-      <!-- Sélecteur de Catégorie Satellitaire -->
+      <!-- Mode de Source -->
+      <div class="mb-3">
+        <label for="mode-select" class="block text-[11px] font-semibold text-slate-400 mb-1 uppercase tracking-wider">
+          <i class="fa-solid fa-sliders mr-1 text-sky-400"></i> Mode de Sélection
+        </label>
+        <select id="mode-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition">
+          <option value="celestrak">Catégories Officielles CelesTrak</option>
+          <option value="custom">Mes Familles Personnalisées</option>
+        </select>
+      </div>
+
+      <!-- Sélecteur de Catégorie ou Famille -->
       <div class="space-y-3">
         <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label for="mode-select" class="block text-xs font-semibold text-slate-300">
-              <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Mode de Sélection
+          <div class="flex items-center justify-between mb-1">
+            <label for="cat-select" class="block text-xs font-semibold text-slate-300">
+              <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Catégorie
             </label>
-            <button id="btn-open-modal" class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-1 font-semibold hover:underline">
-              <i class="fa-solid fa-gear"></i> Gérer mes familles
+            <button id="btn-open-modal" class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium hover:underline transition">
+              <i class="fa-solid fa-folder-plus text-[10px]"></i> Gérer Familles
             </button>
           </div>
-
-          <!-- Selecteur Source : CelesTrak / Familles Perso -->
-          <select id="mode-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 mb-2 font-medium">
-            <optgroup label="Sources prédéfinies">
-              <option value="celestrak">Catégories CelesTrak (Standard)</option>
-            </optgroup>
-            <optgroup label="Vos Familles">
-              <option value="custom">Mes Catégories Personnalisées</option>
-            </optgroup>
+          <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
+            <!-- Rempli dynamiquement -->
           </select>
-
-          <!-- Selecteur dynamique de la catégorie active -->
-          <div id="container-cat-select">
-            <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
-              <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
-              <option value="weather">Satellites Météo (NOAA, GOES...)</option>
-              <option value="starlink">Starlink (SpaceX)</option>
-              <option value="gps-ops">Navigation GPS / Galileo</option>
-              <option value="science">Observatoires (Hubble, JWST...)</option>
-              <option value="active">Flotte Globale Active</option>
-            </select>
-          </div>
         </div>
 
-        <!-- Recherche directe par NORAD ID Rapide -->
-        <div class="bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/80">
-          <label class="block text-[11px] font-semibold text-slate-300 mb-1">
-            <i class="fa-solid fa-bolt text-amber-400 mr-1"></i> Recherche Rapide par NORAD ID
+        <!-- Recherche rapide par NORAD ID -->
+        <div class="p-2 bg-slate-950/80 rounded-xl border border-slate-800/80 space-y-1.5">
+          <label for="quick-norad-input" class="block text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+            <i class="fa-solid fa-bolt mr-1"></i> Recherche Rapide NORAD ID
           </label>
           <div class="flex gap-1.5">
-            <input type="number" id="quick-norad-input" placeholder="Ex: 25544, 20580..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono">
-            <button id="btn-quick-fetch" class="px-3 py-1 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow">
-              <i class="fa-solid fa-arrow-right"></i>
+            <input type="text" id="quick-norad-input" placeholder="Ex: 25544 (ISS)" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500">
+            <button id="btn-quick-fetch" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-semibold transition active:scale-95">
+              Charger
             </button>
           </div>
         </div>
 
-        <!-- Recherche & Filtre de Satellites -->
+        <!-- Filtre de Satellites -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <label for="sat-search" class="block text-xs font-semibold text-slate-300">
@@ -149,7 +170,7 @@
             <span id="sat-count" class="text-[10px] text-slate-400 font-mono">0 objet</span>
           </div>
           
-          <input type="text" id="sat-search" placeholder="Filtrer par nom ou ID NORAD..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 mb-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition font-mono placeholder:text-slate-600">
+          <input type="text" id="sat-search" placeholder="Filtrer par nom ou ID..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 mb-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition font-mono placeholder:text-slate-600">
 
           <select id="sat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
             <option value="">Chargement de la liste...</option>
@@ -189,71 +210,192 @@
         </div>
 
         <!-- Action rapides -->
-        <div class="pt-2 flex gap-2">
-          <button id="btn-recenter" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
+        <div class="pt-2 flex flex-col gap-2">
+          <button id="btn-recenter" class="w-full py-1.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
             <i class="fa-solid fa-earth-americas text-[10px]"></i> Centrer sur (0°, 0°)
           </button>
         </div>
+      </div>
 
-        <!-- Option de Grille Lat/Lng -->
-        <div class="pt-2 mt-2 border-t border-slate-800/80 flex items-center justify-between">
-          <label for="toggle-grid" class="text-xs text-slate-300 flex items-center gap-2 cursor-pointer select-none">
-            <i class="fa-solid fa-border-all text-sky-400"></i> Grille Lat/Lng (15°)
-          </label>
-          <input type="checkbox" id="toggle-grid" class="w-4 h-4 accent-sky-500 rounded cursor-pointer" checked>
-        </div>
+      <!-- Option de quadrillage Lat/Lng -->
+      <div class="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-300">
+        <span class="flex items-center gap-1.5">
+          <i class="fa-solid fa-border-all text-sky-400"></i> Grille Lat/Lng (15°)
+        </span>
+        <input type="checkbox" id="toggle-grid" class="rounded accent-sky-500 w-4 h-4 cursor-pointer">
       </div>
     </div>
 
     <!-- Status Footer -->
     <div class="mt-4 text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2.5">
-      <span id="status-text" class="truncate pr-2">Connexion à CelesTrak...</span>
+      <span id="status-text" class="truncate pr-2">Prêt</span>
       <span class="text-sky-400 flex items-center gap-1 font-mono text-[10px] shrink-0">
-        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> SGP4 Active
+        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> SGP4
       </span>
     </div>
   </div>
 
-  <!-- Modal de Gestion des Catégories Personnalisées -->
-  <div id="custom-cat-modal" class="fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4">
+  <!-- Modal de Gestion des Familles Personnalisées -->
+  <div id="custom-modal" class="hidden fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 shadow-2xl space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-folder-plus text-sky-400"></i> Vos Familles Personnalisées
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-folder-plus text-amber-400"></i> Mes Familles de Satellites
         </h3>
-        <button id="btn-close-modal" class="text-slate-400 hover:text-slate-100 transition text-lg">
+        <button id="btn-close-modal" class="text-slate-400 hover:text-slate-200 text-base">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
-      <!-- Formulaire d'ajout/édition -->
-      <div class="space-y-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+      <div class="space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Nom de la famille</label>
-          <input type="text" id="custom-cat-name" placeholder="Ex: Mes Observatoires Favoris" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+          <label for="custom-cat-name" class="block text-xs font-semibold text-slate-300 mb-1">Nom de la famille</label>
+          <input type="text" id="custom-cat-name" placeholder="Ex: Mes Satellites Favoris" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
         </div>
+
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Identifiants NORAD (séparés par des virgules)</label>
-          <input type="text" id="custom-cat-ids" placeholder="Ex: 25544, 20580, 48274, 43013" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 font-mono">
-          <p class="text-[10px] text-slate-400 mt-1">Exemples : ISS (#25544), Hubble (#20580), Tiangong (#48274), NOAA-20 (#43013)</p>
+          <label for="custom-cat-norad" class="block text-xs font-semibold text-slate-300 mb-1">Numéros NORAD ID (séparés par des virgules)</label>
+          <textarea id="custom-cat-norad" rows="3" placeholder="Ex: 25544, 48274, 20580, 43013" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500"></textarea>
+          <p class="text-[10px] text-slate-500 mt-1">Exemples : 25544 (ISS), 48274 (Tiangong), 20580 (Hubble), 43013 (NOAA-20)</p>
         </div>
-        <button id="btn-save-custom-cat" class="w-full py-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 shadow">
-          <i class="fa-solid fa-plus"></i> Ajouter / Enregistrer la Famille
+
+        <button id="btn-save-category" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition shadow">
+          Créer la Famille
         </button>
       </div>
 
-      <!-- Liste des familles enregistrées -->
-      <div>
-        <h4 class="text-xs font-semibold text-slate-300 mb-2">Familles Enregistrées :</h4>
-        <div id="custom-cat-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-          <!-- Injecté dynamiquement -->
+      <div class="border-t border-slate-800 pt-3">
+        <h4 class="text-xs font-semibold text-slate-400 mb-2">Familles Existantes</h4>
+        <div id="custom-categories-list" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+          <!-- Liste dynamique -->
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Endpoints CelesTrak Direct au format TLE standard (CORS activé)
+    // Limites géographiques (-85° à +85°)
+    const worldBounds = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
+
+    // Initialisation de la carte Leaflet
+    const map = L.map('map', {
+      center: [0, 0],
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 18,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+      zoomControl: false
+    });
+
+    // Contrôle de zoom en bas à droite
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    // Définition des fournisseurs de tuiles
+    const TILE_PROVIDERS = {
+      'esri-dark': {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        opts: { attribution: 'Tiles &copy; Esri', maxZoom: 16, minZoom: 2, bounds: worldBounds, noWrap: true }
+      },
+      'esri-satellite': {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        opts: { attribution: 'Tiles &copy; Esri', maxZoom: 18, minZoom: 2, bounds: worldBounds, noWrap: true }
+      },
+      'carto-dark': {
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        opts: { subdomains: 'abcd', attribution: '&copy; CartoDB', maxZoom: 18, minZoom: 2, bounds: worldBounds, noWrap: true }
+      },
+      'osm-standard': {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        opts: { attribution: '&copy; OpenStreetMap', maxZoom: 18, minZoom: 2, bounds: worldBounds, noWrap: true }
+      }
+    };
+
+    let activeTileLayer = L.tileLayer(TILE_PROVIDERS['esri-dark'].url, TILE_PROVIDERS['esri-dark'].opts).addTo(map);
+
+    function changeMapStyle(styleKey) {
+      if (TILE_PROVIDERS[styleKey]) {
+        map.removeLayer(activeTileLayer);
+        activeTileLayer = L.tileLayer(TILE_PROVIDERS[styleKey].url, TILE_PROVIDERS[styleKey].opts).addTo(map);
+
+        document.querySelectorAll('.map-style-option').forEach(btn => {
+          const isSelected = btn.getAttribute('data-style') === styleKey;
+          btn.className = `map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium flex items-center justify-between transition ${
+            isSelected 
+              ? 'text-amber-300 bg-amber-500/10 border border-amber-500/30' 
+              : 'text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700'
+          }`;
+          const checkIcon = btn.querySelector('.check-icon');
+          if (checkIcon) {
+            checkIcon.classList.toggle('hidden', !isSelected);
+          }
+        });
+      }
+    }
+
+    // Gestion du menu flottant de fond de carte
+    const btnMapStyleToggle = document.getElementById('btn-map-style-toggle');
+    const mapStyleMenu = document.getElementById('map-style-menu');
+
+    if (btnMapStyleToggle && mapStyleMenu) {
+      btnMapStyleToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        mapStyleMenu.classList.toggle('hidden');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!mapStyleMenu.contains(e.target) && !btnMapStyleToggle.contains(e.target)) {
+          mapStyleMenu.classList.add('hidden');
+        }
+      });
+
+      document.querySelectorAll('.map-style-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const style = btn.getAttribute('data-style');
+          changeMapStyle(style);
+          mapStyleMenu.classList.add('hidden');
+        });
+      });
+    }
+
+    // Grille Lat/Lng
+    function createGraticuleLayer() {
+      const graticuleGroup = L.layerGroup();
+      for (let lat = -75; lat <= 75; lat += 15) {
+        const isEquator = lat === 0;
+        const line = L.polyline([[lat, -180], [lat, 180]], {
+          color: isEquator ? '#38bdf8' : '#334155',
+          weight: isEquator ? 1.5 : 0.8,
+          dashArray: isEquator ? null : '4, 4',
+          opacity: isEquator ? 0.8 : 0.45,
+          interactive: false
+        });
+        graticuleGroup.addLayer(line);
+      }
+      for (let lng = -180; lng <= 180; lng += 15) {
+        const isPrime = lng === 0;
+        const line = L.polyline([[-85, lng], [85, lng]], {
+          color: isPrime ? '#38bdf8' : '#334155',
+          weight: isPrime ? 1.5 : 0.8,
+          dashArray: isPrime ? null : '4, 4',
+          opacity: isPrime ? 0.8 : 0.45,
+          interactive: false
+        });
+        graticuleGroup.addLayer(line);
+      }
+      return graticuleGroup;
+    }
+
+    const graticuleLayer = createGraticuleLayer();
+    const toggleGrid = document.getElementById('toggle-grid');
+    if (toggleGrid) {
+      toggleGrid.addEventListener('change', (e) => {
+        if (e.target.checked) map.addLayer(graticuleLayer);
+        else map.removeLayer(graticuleLayer);
+      });
+    }
+
+    // Endpoints CelesTrak Direct
     const CELESTRAK_ENDPOINTS = {
       stations: "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
       weather: "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle",
@@ -263,66 +405,32 @@
       active: "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
     };
 
-    // Familles personnalisées par défaut
-    const DEFAULT_CUSTOM_CATEGORIES = [
-      {
-        id: "cat_perso_1",
-        name: "⭐ Ma Sélection VIP",
-        norads: ["25544", "20580", "48274", "43013"] // ISS, Hubble, Tiangong, NOAA 20
-      }
-    ];
+    const CELESTRAK_LABELS = {
+      stations: "Stations Spatiales (ISS, Tiangong...)",
+      weather: "Satellites Météo (NOAA, MetOp...)",
+      starlink: "Constellation Starlink",
+      "gps-ops": "Navigation (GPS / Galileo / GLONASS)",
+      science: "Observatoires Scientifiques",
+      active: "Flotte Globale Active"
+    };
 
-    // Chargement ou initialisation dans LocalStorage
-    let customCategories = JSON.parse(localStorage.getItem('orbit_custom_categories')) || DEFAULT_CUSTOM_CATEGORIES;
+    // TLEs de secours intégrées
+    const EMBEDDED_FALLBACK_TLE = {
+      stations: `ISS (ZARYA)             
+1 25544U 98067A   24075.52183218  .00014382  00000+0  25605-3 0  9993
+2 25544  51.6416 291.1343 0004838 123.3211 281.2321 15.49812323445127
+CSS (TIANGONG)          
+1 48274U 21035A   24075.50000000  .00012000  00000+0  20000-3 0  9991
+2 48274  41.4700 150.2000 0003000  80.0000 280.0000 15.60000000150003`,
+      weather: `NOAA 20                 
+1 43013U 17073A   24075.50000000  .00000100  00000+0  50000-4 0  9992
+2 43013  98.7000  50.0000 0001000  90.0000 270.0000 14.11000000300002`,
+      science: `HST (HUBBLE)            
+1 20580U 90037B   24075.50000000  .00001000  00000+0  80000-4 0  9994
+2 20580  28.4700 200.0000 0002000  60.0000 300.0000 15.10000000180001`
+    };
 
-    // Limites de la carte du monde (-90°, -180°) à (90°, 180°)
-    const worldBounds = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
-
-    // Initialisation de la carte Leaflet (projection standard Web Mercator pour compatibilité des tuiles)
-    const map = L.map('map', {
-      center: [0, 0],
-      zoom: 2,
-      minZoom: 1,
-      maxZoom: 18,
-      maxBounds: worldBounds,
-      maxBoundsViscosity: 1.0,
-      zoomControl: false
-    });
-
-    // Ajustement du cadrage au redimensionnement
-    function handleResize() {
-      map.invalidateSize();
-    }
-
-    setTimeout(handleResize, 100);
-    window.addEventListener('resize', handleResize);
-
-    // Contrôle de zoom en bas à droite
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    // Fonds de carte sans clé API (Esri Dark Gray & Esri Satellite)
-    const darkMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-      maxZoom: 18,
-      minZoom: 1,
-      bounds: worldBounds,
-      noWrap: true
-    }).addTo(map);
-
-    const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-      maxZoom: 18,
-      minZoom: 1,
-      bounds: worldBounds,
-      noWrap: true
-    });
-
-    L.control.layers({
-      "Mode Sombre": darkMap,
-      "Vue Satellite": satelliteMap
-    }, null, { position: 'topright' }).addTo(map);
-
-    // Icône personnalisée pour le satellite avec animation radar
+    // Icône personnalisée pour le satellite
     const satIcon = L.divIcon({
       className: 'custom-sat-icon',
       html: `
@@ -337,7 +445,7 @@
       iconAnchor: [14, 14]
     });
 
-    // Variables d'état global
+    // Variables d'état
     let currentSatellites = [];
     let filteredSatellites = [];
     let selectedSatrec = null;
@@ -346,268 +454,117 @@
     let selectedEpoch = "";
     let marker = null;
     let orbitLines = [];
-    let graticuleLayer = null;
 
-    // Éléments du DOM
-    const catSelect = document.getElementById('cat-select');
-    const modeSelect = document.getElementById('mode-select');
-    const satSearch = document.getElementById('sat-search');
+    // DOM Elements
+    const statusEl = document.getElementById('status-text');
+    const badgeConnection = document.getElementById('badge-connection');
     const satSelect = document.getElementById('sat-select');
     const satCount = document.getElementById('sat-count');
-    const statusEl = document.getElementById('status-text');
-    const satInfoDiv = document.getElementById('sat-info');
-    const btnRecenter = document.getElementById('btn-recenter');
-    const toggleGrid = document.getElementById('toggle-grid');
-
-    // Modaux et Custom Categories
-    const modal = document.getElementById('custom-cat-modal');
-    const btnOpenModal = document.getElementById('btn-open-modal');
-    const btnCloseModal = document.getElementById('btn-close-modal');
-    const btnSaveCustomCat = document.getElementById('btn-save-custom-cat');
-    const customCatNameInput = document.getElementById('custom-cat-name');
-    const customCatIdsInput = document.getElementById('custom-cat-ids');
-    const customCatListContainer = document.getElementById('custom-cat-list');
+    const satSearch = document.getElementById('sat-search');
+    const modeSelect = document.getElementById('mode-select');
+    const catSelect = document.getElementById('cat-select');
     const quickNoradInput = document.getElementById('quick-norad-input');
     const btnQuickFetch = document.getElementById('btn-quick-fetch');
+    const btnOpenModal = document.getElementById('btn-open-modal');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const modal = document.getElementById('custom-modal');
+    const btnSaveCategory = document.getElementById('btn-save-category');
+    const customCategoriesList = document.getElementById('custom-categories-list');
+    const satInfoDiv = document.getElementById('sat-info');
+    const btnRecenter = document.getElementById('btn-recenter');
 
-    // Récupérer la TLE d'une liste de NORAD IDs via l'API CelesTrak
-    async function fetchTLEsByNoradList(noradArray, label = "Famille Perso") {
-      statusEl.textContent = `Téléchargement des satellites (${noradArray.length})...`;
-      satSelect.innerHTML = "<option value=''>Chargement des NORAD ID...</option>";
-      satCount.textContent = "0 objet";
-      satSearch.value = "";
-
-      const uniqueIds = [...new Set(noradArray.map(id => String(id).trim()).filter(Boolean))];
-      if (uniqueIds.length === 0) {
-        statusEl.textContent = "Aucun NORAD ID valide fourni";
-        satSelect.innerHTML = "<option value=''>Liste vide</option>";
-        return;
+    // Familles personnalisées (localStorage)
+    function getCustomCategories() {
+      try {
+        const stored = localStorage.getItem('orbit_custom_categories');
+        return stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        return [];
       }
-
-      let parsedSatellites = [];
-
-      // Interrogation par lot de NORAD ID via CelesTrak CATNR
-      for (let i = 0; i < uniqueIds.length; i++) {
-        const id = uniqueIds[i];
-        statusEl.textContent = `Récupération NORAD #${id} (${i + 1}/${uniqueIds.length})...`;
-        const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${id}&FORMAT=tle`;
-
-        try {
-          const res = await fetch(url);
-          if (res.ok) {
-            const text = await res.text();
-            const sats = parseTLEText(text);
-            if (sats.length > 0) {
-              parsedSatellites.push(...sats);
-            }
-          }
-        } catch (err) {
-          console.warn(`Erreur lors du chargement pour NORAD #${id}:`, err);
-        }
-      }
-
-      if (parsedSatellites.length === 0) {
-        statusEl.textContent = "Aucun satellite trouvé pour ces identifiants NORAD";
-        satSelect.innerHTML = "<option value=''>Aucun résultat CelesTrak</option>";
-        return;
-      }
-
-      currentSatellites = parsedSatellites;
-      filteredSatellites = parsedSatellites;
-      
-      renderSatelliteOptions(filteredSatellites);
-      statusEl.textContent = `${parsedSatellites.length} satellite(s) chargé(s) dans ${label}`;
-      selectSatellite(0);
     }
 
-    function saveCustomCategoriesToStorage() {
-      localStorage.setItem('orbit_custom_categories', JSON.stringify(customCategories));
+    function saveCustomCategory(name, noradIdsStr) {
+      const ids = noradIdsStr.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      if (!name || ids.length === 0) return;
+
+      const categories = getCustomCategories();
+      const newCat = { id: 'custom_' + Date.now(), name, ids };
+      categories.push(newCat);
+      localStorage.setItem('orbit_custom_categories', JSON.stringify(categories));
+      renderCustomCategoriesList();
+      renderCategoryDropdown(newCat.id);
     }
 
-    function renderCategoryDropdown(targetCatId = null) {
+    function deleteCustomCategory(id) {
+      let categories = getCustomCategories();
+      categories = categories.filter(c => c.id !== id);
+      localStorage.setItem('orbit_custom_categories', JSON.stringify(categories));
+      renderCustomCategoriesList();
+      renderCategoryDropdown();
+    }
+
+    function renderCustomCategoriesList() {
+      const categories = getCustomCategories();
+      customCategoriesList.innerHTML = "";
+      if (categories.length === 0) {
+        customCategoriesList.innerHTML = "<p class='text-[11px] text-slate-500 italic'>Aucune famille créée.</p>";
+        return;
+      }
+      categories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs";
+        item.innerHTML = `
+          <div>
+            <span class="font-bold text-slate-200 block">${cat.name}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${cat.ids.length} NORAD ID(s): ${cat.ids.join(', ')}</span>
+          </div>
+          <button onclick="deleteCustomCategory('${cat.id}')" class="text-rose-400 hover:text-rose-300 p-1">
+            <i class="fa-solid fa-trash text-xs"></i>
+          </button>
+        `;
+        customCategoriesList.appendChild(item);
+      });
+    }
+
+    function renderCategoryDropdown(selectTargetId = null) {
       const mode = modeSelect.value;
       catSelect.innerHTML = "";
 
       if (mode === 'celestrak') {
-        catSelect.innerHTML = `
-          <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
-          <option value="weather">Satellites Météo (NOAA, GOES...)</option>
-          <option value="starlink">Starlink (SpaceX)</option>
-          <option value="gps-ops">Navigation GPS / Galileo</option>
-          <option value="science">Observatoires (Hubble, JWST...)</option>
-          <option value="active">Flotte Globale Active</option>
-        `;
-        if (targetCatId) catSelect.value = targetCatId;
-        loadCategoryData(catSelect.value);
-      } else {
-        if (customCategories.length === 0) {
-          catSelect.innerHTML = "<option value=''>Aucune famille créée</option>";
-          statusEl.textContent = "Créez une famille personnalisée via le bouton Gérer";
-          return;
-        }
-
-        customCategories.forEach(cat => {
+        Object.keys(CELESTRAK_ENDPOINTS).forEach(key => {
           const opt = document.createElement('option');
-          opt.value = cat.id;
-          opt.textContent = `${cat.name} (${cat.norads.length} sats)`;
+          opt.value = key;
+          opt.textContent = CELESTRAK_LABELS[key] || key;
           catSelect.appendChild(opt);
         });
-
-        // Charger la catégorie cible ou la première catégorie sur-mesure
-        const targetCat = customCategories.find(c => c.id === targetCatId) || customCategories[0];
-        if (targetCat) {
-          catSelect.value = targetCat.id;
-          fetchTLEsByNoradList(targetCat.norads, targetCat.name);
-        }
-      }
-    }
-
-    function renderCustomCatListModal() {
-      customCatListContainer.innerHTML = "";
-      if (customCategories.length === 0) {
-        customCatListContainer.innerHTML = "<p class='text-xs text-slate-500 italic'>Aucune catégorie personnalisée enregistrée.</p>";
-        return;
-      }
-
-      customCategories.forEach(cat => {
-        const item = document.createElement('div');
-        item.className = "flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs";
-        item.innerHTML = `
-          <div>
-            <div class="font-bold text-slate-200">${cat.name}</div>
-            <div class="text-[10px] text-sky-400 font-mono truncate max-w-[240px]">NORADs: ${cat.norads.join(', ')}</div>
-          </div>
-          <button data-id="${cat.id}" class="btn-del-cat px-2 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30 rounded text-[10px] transition">
-            <i class="fa-solid fa-trash"></i> Supprimer
-          </button>
-        `;
-        customCatListContainer.appendChild(item);
-      });
-
-      // Attacher les événements de suppression
-      document.querySelectorAll('.btn-del-cat').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const catId = e.currentTarget.getAttribute('data-id');
-          customCategories = customCategories.filter(c => c.id !== catId);
-          saveCustomCategoriesToStorage();
-          renderCustomCatListModal();
-          renderCategoryDropdown();
-        });
-      });
-    }
-
-    // Modal Handlers
-    btnOpenModal.addEventListener('click', () => {
-      renderCustomCatListModal();
-      modal.classList.remove('hidden');
-    });
-
-    btnCloseModal.addEventListener('click', () => modal.classList.add('hidden'));
-
-    btnSaveCustomCat.addEventListener('click', () => {
-      const name = customCatNameInput.value.trim();
-      const rawIds = customCatIdsInput.value.trim();
-
-      if (!name || !rawIds) {
-        statusEl.textContent = "Veuillez spécifier un nom et au moins un identifiant NORAD";
-        return;
-      }
-
-      const norads = rawIds.split(',').map(s => s.trim()).filter(Boolean);
-      const newCat = {
-        id: "cat_perso_" + Date.now(),
-        name: name,
-        norads: norads
-      };
-
-      customCategories.push(newCat);
-      saveCustomCategoriesToStorage();
-
-      customCatNameInput.value = "";
-      customCatIdsInput.value = "";
-
-      renderCustomCatListModal();
-      modeSelect.value = "custom";
-      renderCategoryDropdown(newCat.id);
-      modal.classList.add('hidden');
-    });
-
-    // Recherche Rapide Directe par NORAD ID
-    btnQuickFetch.addEventListener('click', () => {
-      const id = quickNoradInput.value.trim();
-      if (id) {
-        fetchTLEsByNoradList([id], `NORAD #${id}`);
-      }
-    });
-
-    // Événements de sélection
-    modeSelect.addEventListener('change', () => renderCategoryDropdown());
-
-    catSelect.addEventListener('change', (e) => {
-      if (modeSelect.value === 'celestrak') {
-        loadCategoryData(e.target.value);
+        if (selectTargetId) catSelect.value = selectTargetId;
+        loadCategoryData(catSelect.value);
       } else {
-        const found = customCategories.find(c => c.id === e.target.value);
-        if (found) {
-          fetchTLEsByNoradList(found.norads, found.name);
-        }
-      }
-    });
-
-    // Créer la couche de graticule / grille de latitude & longitude
-    function createGraticuleLayer() {
-      const layerGroup = L.layerGroup();
-
-      // Lignes de Latitude (tous les 15°)
-      for (let lat = -75; lat <= 75; lat += 15) {
-        const isEquator = (lat === 0);
-        const polyline = L.polyline([
-          [lat, -180],
-          [lat, 180]
-        ], {
-          color: isEquator ? '#38bdf8' : '#475569',
-          weight: isEquator ? 1.5 : 0.75,
-          dashArray: isEquator ? null : '4, 4',
-          opacity: isEquator ? 0.8 : 0.4,
-          interactive: false
-        });
-        layerGroup.addLayer(polyline);
-      }
-
-      // Lignes de Longitude (tous les 15°)
-      for (let lng = -180; lng <= 180; lng += 15) {
-        const isMeridian = (lng === 0);
-        const polyline = L.polyline([
-          [-85, lng],
-          [85, lng]
-        ], {
-          color: isMeridian ? '#38bdf8' : '#475569',
-          weight: isMeridian ? 1.5 : 0.75,
-          dashArray: isMeridian ? null : '4, 4',
-          opacity: isMeridian ? 0.8 : 0.4,
-          interactive: false
-        });
-        layerGroup.addLayer(polyline);
-      }
-
-      return layerGroup;
-    }
-
-    // Initialiser et afficher la grille par défaut
-    graticuleLayer = createGraticuleLayer().addTo(map);
-
-    // Événement pour afficher/masquer la grille
-    if (toggleGrid) {
-      toggleGrid.addEventListener('change', (e) => {
-        if (e.target.checked) {
-          map.addLayer(graticuleLayer);
+        const customCats = getCustomCategories();
+        if (customCats.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = "";
+          opt.textContent = "Aucune famille (cliquez sur Gérer)";
+          catSelect.appendChild(opt);
+          currentSatellites = [];
+          filteredSatellites = [];
+          renderSatelliteOptions([]);
+          satInfoDiv.classList.add('hidden');
+          statusEl.textContent = "Créez une famille pour commencer";
         } else {
-          map.removeLayer(graticuleLayer);
+          customCats.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat.id;
+            opt.textContent = `${cat.name} (${cat.ids.length} sat)`;
+            catSelect.appendChild(opt);
+          });
+          if (selectTargetId) catSelect.value = selectTargetId;
+          loadCustomCategoryData(catSelect.value);
         }
-      });
+      }
     }
 
-    // Parseur de données TLE texte brut vers objets structurés
+    // Parseur TLE
     function parseTLEText(tleText) {
       const lines = tleText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
       const satellites = [];
@@ -635,50 +592,136 @@
             line2: line2
           });
 
-          i++; // Passer la ligne 2
+          i++;
         }
       }
       return satellites;
     }
 
-    // Chargement des données GP/TLE depuis CelesTrak Direct
+    // Récupération de TLE via Proxies
+    async function fetchTLEData(url) {
+      const proxies = [
+        url,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`
+      ];
+
+      for (const targetUrl of proxies) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+          const resp = await fetch(targetUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (resp.ok) {
+            const text = await resp.text();
+            if (text && text.includes('1 ') && text.includes('2 ')) {
+              return text;
+            }
+          }
+        } catch (e) {
+          // essayer le proxy suivant
+        }
+      }
+      return null;
+    }
+
+    // Chargement catégorie CelesTrak
     async function loadCategoryData(catKey) {
-      statusEl.textContent = "Téléchargement direct depuis CelesTrak...";
+      statusEl.textContent = "Téléchargement depuis CelesTrak...";
       satSelect.innerHTML = "<option value=''>Chargement des données...</option>";
       satCount.textContent = "0 objet";
       satSearch.value = "";
 
       const url = CELESTRAK_ENDPOINTS[catKey] || CELESTRAK_ENDPOINTS.stations;
+      let textData = await fetchTLEData(url);
 
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Erreur réseau HTTP ${response.status}`);
-        }
+      if (!textData && EMBEDDED_FALLBACK_TLE[catKey]) {
+        textData = EMBEDDED_FALLBACK_TLE[catKey];
+      }
 
-        const textData = await response.text();
+      if (textData) {
         const parsedSatellites = parseTLEText(textData);
-        
-        if (!Array.isArray(parsedSatellites) || parsedSatellites.length === 0) {
-          throw new Error("Aucun satellite valide trouvé dans la réponse");
-        }
-
         currentSatellites = parsedSatellites;
         filteredSatellites = parsedSatellites;
-        
         renderSatelliteOptions(filteredSatellites);
-        statusEl.textContent = `${parsedSatellites.length} satellites reçus via CelesTrak`;
-        
-        // Sélection par défaut du premier satellite
-        selectSatellite(0);
-      } catch (err) {
-        console.error("Erreur CelesTrak :", err);
+        statusEl.textContent = `${parsedSatellites.length} satellites reçus`;
+        if (parsedSatellites.length > 0) selectSatellite(0);
+      } else {
         satSelect.innerHTML = "<option value=''>Erreur de chargement</option>";
-        statusEl.textContent = "Échec du téléchargement CelesTrak";
+        statusEl.textContent = "Échec du téléchargement";
       }
     }
 
-    // Rendu des options de sélection de satellite avec filtre
+    // Chargement famille personnalisée
+    async function loadCustomCategoryData(catId) {
+      const customCats = getCustomCategories();
+      const targetCat = customCats.find(c => c.id === catId);
+      if (!targetCat) return;
+
+      statusEl.textContent = `Téléchargement de la famille "${targetCat.name}"...`;
+      satSelect.innerHTML = "<option value=''>Chargement...</option>";
+      satCount.textContent = "0 objet";
+
+      const fetchedSatellites = [];
+      for (const id of targetCat.ids) {
+        const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${id}&FORMAT=tle`;
+        const textData = await fetchTLEData(url);
+        if (textData) {
+          const parsed = parseTLEText(textData);
+          if (parsed.length > 0) fetchedSatellites.push(parsed[0]);
+        }
+      }
+
+      currentSatellites = fetchedSatellites;
+      filteredSatellites = fetchedSatellites;
+      renderSatelliteOptions(filteredSatellites);
+      statusEl.textContent = `${fetchedSatellites.length} satellite(s) de la famille chargé(s)`;
+      if (fetchedSatellites.length > 0) selectSatellite(0);
+    }
+
+    // Chargement par NORAD ID unique
+    async function quickFetchNorad(noradId) {
+      if (!noradId) return;
+      statusEl.textContent = `Recherche du NORAD #${noradId}...`;
+      
+      let textData = null;
+      let parsed = [];
+
+      // 1. API spécifique très fiable pour les recherches par NORAD ID unique
+      try {
+        const jsonResp = await fetch(`https://tle.ivanstanojevic.me/api/tle/${noradId}`);
+        if (jsonResp.ok) {
+          const data = await jsonResp.json();
+          if (data.line1 && data.line2) {
+            textData = `${data.name || 'Satellite ' + noradId}\n${data.line1}\n${data.line2}`;
+            parsed = parseTLEText(textData);
+          }
+        }
+      } catch (err) {
+        console.warn("L'API primaire a échoué, essai du fallback CelesTrak...", err);
+      }
+
+      // 2. Fallback via CelesTrak
+      if (parsed.length === 0) {
+        const url = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=tle`;
+        textData = await fetchTLEData(url);
+        if (textData) {
+          parsed = parseTLEText(textData);
+        }
+      }
+
+      if (parsed.length > 0) {
+        currentSatellites = parsed;
+        filteredSatellites = parsed;
+        renderSatelliteOptions(filteredSatellites);
+        selectSatellite(0);
+        statusEl.textContent = `Satellite #${noradId} trouvé`;
+        return;
+      }
+      
+      statusEl.textContent = `NORAD #${noradId} introuvable`;
+    }
+
     function renderSatelliteOptions(satList) {
       satSelect.innerHTML = "";
       satCount.textContent = `${satList.length} objet${satList.length > 1 ? 's' : ''}`;
@@ -691,32 +734,28 @@
       satList.forEach((sat, idx) => {
         const opt = document.createElement('option');
         opt.value = idx;
-        const name = sat.OBJECT_NAME || sat.SATNAME || "Objet Inconnu";
+        const name = sat.OBJECT_NAME || "Objet Inconnu";
         const norad = sat.NORAD_CAT_ID || "N/A";
         opt.textContent = `${name} (#${norad})`;
         satSelect.appendChild(opt);
       });
     }
 
-    // Filtrer la liste des satellites par champ de recherche
     satSearch.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase().trim();
       if (!query) {
         filteredSatellites = currentSatellites;
       } else {
         filteredSatellites = currentSatellites.filter(sat => {
-          const name = (sat.OBJECT_NAME || sat.SATNAME || "").toLowerCase();
+          const name = (sat.OBJECT_NAME || "").toLowerCase();
           const norad = String(sat.NORAD_CAT_ID || "");
           return name.includes(query) || norad.includes(query);
         });
       }
       renderSatelliteOptions(filteredSatellites);
-      if (filteredSatellites.length > 0) {
-        selectSatellite(0);
-      }
+      if (filteredSatellites.length > 0) selectSatellite(0);
     });
 
-    // Sélection d'un satellite spécifique
     function selectSatellite(filterIndex) {
       if (!filteredSatellites[filterIndex]) return;
       const sat = filteredSatellites[filterIndex];
@@ -731,13 +770,12 @@
           selectedSatrec = satellite.twoline2satrec(sat.line1, sat.line2);
         }
       } catch (err) {
-        console.error("Erreur de parsing orbital SGP4 :", err);
         selectedSatrec = null;
       }
 
       if (!selectedSatrec || selectedSatrec.error) {
         satInfoDiv.classList.add('hidden');
-        statusEl.textContent = "Format TLE invalide pour ce satellite";
+        statusEl.textContent = "Format TLE invalide";
         return;
       }
 
@@ -749,7 +787,6 @@
       updatePosition(false);
     }
 
-    // Calcul SGP4 sécurisé à une date donnée (évite les valeurs NaN)
     function getSatelliteStateAt(satrec, date) {
       try {
         if (!satrec) return null;
@@ -779,9 +816,7 @@
       }
     }
 
-    // Tracer la trajectoire orbitale au sol (90 minutes futures)
     function drawOrbit() {
-      // Effacer les anciennes lignes
       orbitLines.forEach(line => map.removeLayer(line));
       orbitLines = [];
       if (!selectedSatrec) return;
@@ -795,7 +830,6 @@
         const pos = getSatelliteStateAt(selectedSatrec, futureTime);
 
         if (pos) {
-          // Gestion du franchissement du méridien de 180° pour éviter le trait de traversée
           if (currentSegment.length > 0) {
             const prevLng = currentSegment[currentSegment.length - 1][1];
             if (Math.abs(pos.lng - prevLng) > 180) {
@@ -808,7 +842,6 @@
       }
       if (currentSegment.length > 0) segments.push(currentSegment);
 
-      // Dessiner chaque segment sur la carte
       segments.forEach(segment => {
         if (segment.length > 1) {
           const polyline = L.polyline(segment, { 
@@ -822,7 +855,6 @@
       });
     }
 
-    // Mise à jour de la position du satellite en temps réel
     function updatePosition(autoCenter = false) {
       if (!selectedSatrec) return;
       const now = new Date();
@@ -856,19 +888,60 @@
       }
     }
 
-    // Événements d'interaction
+    // Événements UI
+    modeSelect.addEventListener('change', () => renderCategoryDropdown());
+    catSelect.addEventListener('change', (e) => {
+      if (modeSelect.value === 'celestrak') {
+        loadCategoryData(e.target.value);
+      } else {
+        loadCustomCategoryData(e.target.value);
+      }
+    });
+
     satSelect.addEventListener('change', (e) => selectSatellite(e.target.value));
+
+    btnQuickFetch.addEventListener('click', () => {
+      const val = quickNoradInput.value.trim();
+      if (val) quickFetchNorad(val);
+    });
+
+    quickNoradInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = quickNoradInput.value.trim();
+        if (val) quickFetchNorad(val);
+      }
+    });
+
+    btnOpenModal.addEventListener('click', () => {
+      renderCustomCategoriesList();
+      modal.classList.remove('hidden');
+    });
+
+    btnCloseModal.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+
+    btnSaveCategory.addEventListener('click', () => {
+      const name = document.getElementById('custom-cat-name').value.trim();
+      const norads = document.getElementById('custom-cat-norad').value.trim();
+      if (name && norads) {
+        saveCustomCategory(name, norads);
+        document.getElementById('custom-cat-name').value = "";
+        document.getElementById('custom-cat-norad').value = "";
+        modal.classList.add('hidden');
+      }
+    });
 
     btnRecenter.addEventListener('click', () => {
       map.setView([0, 0], 2, { animate: true, duration: 0.8 });
     });
 
-    // Lancement au chargement de la page
+    // Lancement au chargement
     window.addEventListener('DOMContentLoaded', () => {
-      loadCategoryData('stations');
+      renderCategoryDropdown();
     });
 
-    // Boucle de mise à jour en temps réel (chaque seconde)
+    // Rafraîchissement chaque seconde
     setInterval(() => updatePosition(false), 1000);
   </script>
 </body>
