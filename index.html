@@ -174,15 +174,29 @@
       zoomControl: false
     });
 
+    // Invalidation de la taille de la carte pour assurer le bon rendu complet
+    setTimeout(() => { map.invalidateSize(); }, 200);
+    window.addEventListener('resize', () => map.invalidateSize());
+
     // Bouton de zoom repositionné
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Tuiles CartoDB Dark Matter (Optimisées pour la visualisation spatiale)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
+    // Tuiles ESRI Dark Gray Canvas (Totalement gratuit et sans clé API)
+    const darkTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      maxZoom: 16
     }).addTo(map);
+
+    // Couche ESRI World Imagery (Vue Satellite)
+    const satelliteTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+    });
+
+    // Sélecteur de fonds de carte (en haut à droite)
+    L.control.layers({
+      "Carte Sombre": darkTiles,
+      "Vue Satellite": satelliteTiles
+    }, null, { position: 'topright' }).addTo(map);
 
     // Icône personnalisée de satellite
     const satIcon = L.divIcon({
@@ -293,44 +307,65 @@
     function selectSatellite(index) {
       if (!currentSatellites[index]) return;
       const sat = currentSatellites[index];
-      selectedSatName = sat.OBJECT_NAME || sat.name || `Satellite ${parseInt(index) + 1}`;
+      selectedSatName = sat.OBJECT_NAME || sat.name || sat.NAME || `Satellite ${parseInt(index) + 1}`;
 
-      // Extraire les deux lignes TLE de manière sécurisée
-      const line1 = sat.TLE_LINE1 || sat.tle1 || sat.line1;
-      const line2 = sat.TLE_LINE2 || sat.tle2 || sat.line2;
+      // Extraire les deux lignes TLE de manière sécurisée quel que soit le format de la propriété
+      const line1 = sat.TLE_LINE1 || sat.tle1 || sat.line1 || sat.LINE1;
+      const line2 = sat.TLE_LINE2 || sat.tle2 || sat.line2 || sat.LINE2;
 
       if (line1 && line2) {
-        selectedSatrec = satellite.twoline2satrec(line1.trim(), line2.trim());
+        try {
+          selectedSatrec = satellite.twoline2satrec(line1.trim(), line2.trim());
+        } catch (err) {
+          console.error("Erreur de décodage TLE :", err);
+          selectedSatrec = null;
+        }
       } else {
         console.warn("Données TLE introuvables pour ce satellite :", sat);
         selectedSatrec = null;
+      }
+
+      if (!selectedSatrec) {
         satInfoDiv.classList.add('hidden');
+        statusEl.textContent = "Données TLE invalides";
         return;
       }
 
       satInfoDiv.classList.remove('hidden');
       drawOrbit();
-      updatePosition();
+      updatePosition(true); // Recentrer la carte sur le satellite sélectionné
     }
 
-    // Calcul SGP4 pour une date donnée
+    // Calcul SGP4 pour une date donnée avec validation stricte
     function getSatelliteStateAt(satrec, date) {
-      const positionAndVelocity = satellite.propagate(satrec, date);
-      if (!positionAndVelocity.position || !positionAndVelocity.velocity) return null;
+      try {
+        if (!satrec) return null;
+        const positionAndVelocity = satellite.propagate(satrec, date);
+        if (!positionAndVelocity || !positionAndVelocity.position || !positionAndVelocity.velocity) return null;
 
-      const gmst = satellite.gstime(date);
-      const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+        const pos = positionAndVelocity.position;
+        const vel = positionAndVelocity.velocity;
 
-      // Calcul de la vitesse scalaire (km/s)
-      const v = positionAndVelocity.velocity;
-      const speed = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        // Vérification de la validité des coordonnées numériques
+        if (!isFinite(pos.x) || !isFinite(pos.y) || !isFinite(pos.z)) return null;
 
-      return {
-        lat: satellite.degreesLat(positionGd.latitude),
-        lng: satellite.degreesLong(positionGd.longitude),
-        alt: positionGd.height,
-        speed: speed
-      };
+        const gmst = satellite.gstime(date);
+        const positionGd = satellite.eciToGeodetic(pos, gmst);
+
+        const lat = satellite.degreesLat(positionGd.latitude);
+        const lng = satellite.degreesLong(positionGd.longitude);
+        const alt = positionGd.height;
+        const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+
+        if (!isFinite(lat) || !isFinite(lng) || !isFinite(alt) || isNaN(lat) || isNaN(lng)) {
+          return null;
+        }
+
+        return { lat, lng, alt, speed };
+      } catch (err) {
+        console.error("Erreur SGP4 propagation:", err);
+        return null;
+      }
     }
 
     // Tracé de l'orbite au sol (90 minutes futures)
@@ -363,18 +398,20 @@
 
       // Dessin des segments polynomiaux pointillés
       segments.forEach(segment => {
-        const polyline = L.polyline(segment, { 
-          color: '#38bdf8', 
-          weight: 2, 
-          dashArray: '6, 6',
-          opacity: 0.8 
-        }).addTo(map);
-        orbitLines.push(polyline);
+        if (segment.length > 1) {
+          const polyline = L.polyline(segment, { 
+            color: '#38bdf8', 
+            weight: 2, 
+            dashArray: '6, 6',
+            opacity: 0.8 
+          }).addTo(map);
+          orbitLines.push(polyline);
+        }
       });
     }
 
     // Mise à jour de la position courante (1 seconde)
-    function updatePosition() {
+    function updatePosition(autoCenter = false) {
       if (!selectedSatrec) return;
       const now = new Date();
       const state = getSatelliteStateAt(selectedSatrec, now);
@@ -391,6 +428,10 @@
           marker = L.marker([state.lat, state.lng], { icon: satIcon }).addTo(map);
         } else {
           marker.setLatLng([state.lat, state.lng]);
+        }
+
+        if (autoCenter) {
+          map.panTo([state.lat, state.lng]);
         }
 
         marker.bindPopup(`
@@ -411,7 +452,7 @@
     loadCategory('stations');
 
     // Boucle de mise à jour paramétrée à 1000 ms (1 seconde)
-    setInterval(updatePosition, 1000);
+    setInterval(() => updatePosition(false), 1000);
   </script>
 </body>
 </html>
