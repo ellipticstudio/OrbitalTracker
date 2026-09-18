@@ -55,6 +55,32 @@
     <!-- Sélecteurs -->
     <div class="space-y-3">
       <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Source de données</label>
+        <div class="flex gap-2">
+          <select id="source-provider" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition">
+            <option value="celestrak">CelesTrak (Accès Public)</option>
+            <option value="spacetrack">Space-Track.org (Compte requis)</option>
+          </select>
+          <button id="toggle-spacetrack-config" title="Configuration Space-Track" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg border border-slate-700 text-xs flex items-center gap-1 transition">
+            <i class="fa-solid fa-key"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Configuration Space-Track (Masquée par défaut) -->
+      <div id="spacetrack-credentials-box" class="hidden p-3 bg-slate-950/80 rounded-lg border border-sky-500/30 space-y-2">
+        <div class="text-[11px] font-semibold text-sky-400 flex items-center justify-between">
+          <span>Identifiants Space-Track.org</span>
+          <span class="text-[9px] text-slate-500">Session locale</span>
+        </div>
+        <input type="email" id="st-email" placeholder="Email Space-Track" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+        <input type="password" id="st-password" placeholder="Mot de passe" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+        <div class="flex justify-end gap-2 pt-1">
+          <button id="btn-save-st" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs transition">Enregistrer & Connexion</button>
+        </div>
+      </div>
+
+      <div>
         <label class="block text-xs font-medium text-slate-400 mb-1">Catégorie de Flotte</label>
         <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-sky-500 transition">
           <option value="stations">Stations Spatiales (ISS, Tiangong...)</option>
@@ -157,8 +183,8 @@
       ]
     };
 
-    // URLs des API CelesTrak
-    const CELESTRAK_URLS = {
+    // URLs des flux de données orbitales TLE
+    const ORBITAL_DATA_URLS = {
       stations: "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json",
       weather: "https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=json",
       starlink: "https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json",
@@ -219,6 +245,7 @@
     let selectedSatName = "";
     let marker = null;
     let orbitLines = [];
+    let spacetrackCredentials = { identity: "", password: "" };
 
     // Références DOM
     const catSelect = document.getElementById('cat-select');
@@ -229,23 +256,23 @@
 
     // Récupération Résiliente Multi-Sources
     async function fetchSatelliteData(catKey) {
-      const targetUrl = CELESTRAK_URLS[catKey];
+      const targetUrl = ORBITAL_DATA_URLS[catKey];
       
-      // Essai 1 : Accès Direct CelesTrak
+      // Essai 1 : Accès Direct au Serveur de Données
       try {
         const response = await fetch(targetUrl, { cache: 'no-cache' });
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data) && data.length > 0) {
-            setSourceBadge('CelesTrak Direct', 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30');
+            setSourceBadge('Flux Direct', 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30');
             return data;
           }
         }
       } catch (e) {
-        console.warn("Échec requête directe CelesTrak, tentative via Proxys CORS...");
+        console.warn("Échec de la requête directe, tentative via serveurs relais...");
       }
 
-      // Essai 2 : Proxys CORS de secours
+      // Essai 2 : Serveurs de secours
       const proxies = [
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
         url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
@@ -258,18 +285,18 @@
           if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data) && data.length > 0) {
-              setSourceBadge('CelesTrak (Proxy)', 'bg-sky-500/20 text-sky-300 border-sky-500/30');
+              setSourceBadge('Flux Relais', 'bg-sky-500/20 text-sky-300 border-sky-500/30');
               return data;
             }
           }
         } catch (err) {
-          console.warn("Échec proxy CORS, tentative suivante...");
+          console.warn("Échec du relais, tentative suivante...");
         }
       }
 
       // Essai 3 : Repli total sur la base TLE embarquée locale
       console.warn("Utilisation de la base de données TLE locale embarquée.");
-      setSourceBadge('Mode Hors-Ligne (Local)', 'bg-amber-500/20 text-amber-300 border-amber-500/30');
+      setSourceBadge('Mode Local', 'bg-amber-500/20 text-amber-300 border-amber-500/30');
       return EMBEDDED_FALLBACK_DATA[catKey] || EMBEDDED_FALLBACK_DATA.stations;
     }
 
