@@ -25,12 +25,28 @@
       padding: 0; 
       overflow: hidden; 
       font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-      background-color: #080c14; 
+      background-color: #030712; 
+    }
+
+    /* Conteneur pour forcer le ratio d'aspect 2:1 strict */
+    .map-frame {
+      width: 100vw;
+      height: calc(100vw / 2);
+      max-height: 100vh;
+      max-width: calc(100vh * 2);
+      aspect-ratio: 2 / 1;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(56, 189, 248, 0.2);
+      border-radius: 12px;
+      overflow: hidden;
     }
 
     #map { 
-      width: 100vw; 
-      height: 100vh; 
+      width: 100%; 
+      height: 100%; 
       background-color: #080c14; 
     }
     
@@ -60,12 +76,14 @@
 
     /* Personnalisation des barres de défilement */
     ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: #0b0f19; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #334155; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 flex flex-col h-screen overflow-hidden">
+<body class="bg-slate-950 text-slate-100 flex items-center justify-center h-screen overflow-hidden relative">
+
+  <!-- Cadre Carte au Format 2x1 (360° x 180°) -->
+  <div class="map-frame">
+    <div id="map"></div>
+  </div>
 
   <!-- Panneau de Contrôle Principal -->
   <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
@@ -156,7 +174,7 @@
         <!-- Action rapides -->
         <div class="pt-2 flex gap-2">
           <button id="btn-recenter" class="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
-            <i class="fa-solid fa-crosshairs text-[10px]"></i> Centrer la vue
+            <i class="fa-solid fa-earth-americas text-[10px]"></i> Centrer sur (0°, 0°)
           </button>
         </div>
       </div>
@@ -171,9 +189,6 @@
     </div>
   </div>
 
-  <!-- Carte Leaflet Fullscreen -->
-  <div id="map"></div>
-
   <script>
     // Endpoints CelesTrak Direct au format TLE standard (CORS activé)
     const CELESTRAK_ENDPOINTS = {
@@ -185,28 +200,47 @@
       active: "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
     };
 
-    // Initialisation de la carte Leaflet
+    // Limites de la carte du monde (-90°, -180°) à (90°, 180°)
+    const worldBounds = L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180));
+
+    // Initialisation de la carte Leaflet (projection standard Web Mercator pour compatibilité des tuiles)
     const map = L.map('map', {
-      center: [20, 0],
-      zoom: 2.5,
+      center: [0, 0],
+      zoom: 2,
+      minZoom: 1,
+      maxZoom: 18,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
       zoomControl: false
     });
 
-    // Ajustement de la taille de la carte sur redimensionnement
-    setTimeout(() => map.invalidateSize(), 200);
-    window.addEventListener('resize', () => map.invalidateSize());
+    // Ajustement du cadrage au format 2x1 au chargement et au redimensionnement
+    function fit2x1View() {
+      map.invalidateSize();
+    }
+
+    setTimeout(fit2x1View, 100);
+    window.addEventListener('resize', fit2x1View);
 
     // Contrôle de zoom en bas à droite
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Fonds de carte ESRI sans clé API
-    const darkMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-      maxZoom: 16
+    // Fonds de carte avec tuiles compatibles (CartoDB Dark & Esri Satellite)
+    const darkMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 18,
+      minZoom: 1,
+      bounds: worldBounds,
+      noWrap: true
     }).addTo(map);
 
     const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      maxZoom: 18,
+      minZoom: 1,
+      bounds: worldBounds,
+      noWrap: true
     });
 
     L.control.layers({
@@ -387,7 +421,7 @@
 
       satInfoDiv.classList.remove('hidden');
       drawOrbit();
-      updatePosition(true);
+      updatePosition(false);
     }
 
     // Calcul SGP4 sécurisé à une date donnée (évite les valeurs NaN)
@@ -502,9 +536,7 @@
     satSelect.addEventListener('change', (e) => selectSatellite(e.target.value));
 
     btnRecenter.addEventListener('click', () => {
-      if (marker) {
-        map.panTo(marker.getLatLng(), { animate: true, duration: 0.8 });
-      }
+      map.setView([0, 0], 2, { animate: true, duration: 0.8 });
     });
 
     // Lancement au chargement de la page
