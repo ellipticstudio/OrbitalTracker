@@ -3,87 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TLE ANALYSER</title>
-  <!-- Chargement de satellite.js via CDN -->
+  <title>Suivi de Satellites 2D</title>
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Satellite.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/5.0.0/satellite.min.js"></script>
+
   <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background-color: #0f172a;
-      color: #f8fafc;
-    }
-    .card {
-      background-color: #1e293b;
-      padding: 24px;
-      border-radius: 12px;
-      border: 1px solid #334155;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    h1 { font-size: 1.25rem; margin-top: 0; color: #38bdf8; }
-    .metric { margin: 12px 0; font-size: 1.1rem; }
-    .label { color: #94a3b8; }
-    .value { font-weight: bold; color: #f1f5f9; }
+    body { margin: 0; padding: 0; font-family: system-ui, sans-serif; background: #0f172a; color: white; }
+    #controls { position: absolute; top: 10px; left: 50px; z-index: 1000; background: rgba(30, 41, 59, 0.9); padding: 12px; border-radius: 8px; border: 1px solid #334155; }
+    select { background: #0f172a; color: white; padding: 6px 12px; border-radius: 4px; border: 1px solid #475569; font-size: 14px; }
+    #map { width: 100vw; height: 100vh; }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h1 id="sat-name">Calcul en cours...</h1>
-    <div class="metric"><span class="label">Latitude :</span> <span id="lat" class="value">-</span></div>
-    <div class="metric"><span class="label">Longitude :</span> <span id="lng" class="value">-</span></div>
-    <div class="metric"><span class="label">Altitude :</span> <span id="alt" class="value">-</span> km</div>
-    <div class="metric"><span class="label">Mise à jour :</span> <span id="time" class="value">-</span></div>
+  <div id="controls">
+    <label for="sat-select">Choisir un satellite : </label>
+    <select id="sat-select"></select>
   </div>
 
+  <div id="map"></div>
+
   <script>
-    // Données TLE (Exemple : ISS - ZARYA)
-    const tleLine1 = '1 25544U 98067A   24080.52843720  .00015523  00000+0  27572-3 0  9993';
-    const tleLine2 = '2 25544  51.6416 288.4239 0004381 122.2514 308.1751 15.49814420445098';
-    const satName = 'ISS (ZARYA)';
-
-    function updatePosition() {
-      // 1. Initialisation de l'enregistrement satellite à partir du TLE
-      const satrec = satellite.twoline2satrec(tleLine1, tleLine2);
-      
-      // 2. Horodatage actuel
-      const now = new Date();
-
-      // 3. Propagation SGP4 pour obtenir la position (ECI) et la vitesse
-      const positionAndVelocity = satellite.propagate(satrec, now);
-      const positionEci = positionAndVelocity.position;
-
-      if (!positionEci) {
-        console.error("Erreur de calcul SGP4");
-        return;
+    // 1. Liste de satellites avec leurs données TLE
+    const satellites = [
+      {
+        name: "ISS (Station Spatiale Internationale)",
+        line1: "1 25544U 98067A   24080.52843720  .00015523  00000+0  27572-3 0  9993",
+        line2: "2 25544  51.6416 288.4239 0004381 122.2514 308.1751 15.49814420445098"
+      },
+      {
+        name: "Télescope Hubble (HST)",
+        line1: "1 20580U 90037B   24080.41249712  .00001284  00000+0  68912-4 0  9992",
+        line2: "2 20580  28.4688 248.8354 0002829  93.7544 266.3683 15.09289131862143"
+      },
+      {
+        name: "NOAA 19 (Météo)",
+        line1: "1 33591U 09005A   24080.51130752  .00000072  00000+0  63421-4 0  9998",
+        line2: "2 33591  98.7042 101.4820 0013821 167.3524 192.8105 14.12467355778811"
       }
+    ];
 
-      // 4. Calcul du temps sidéral de Greenwich (GMST)
-      const gmst = satellite.gstime(now);
+    // 2. Initialisation de la carte Leaflet
+    const map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-      // 5. Conversion ECI -> Coordonnées géodétiques (radians)
-      const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+    let marker = null;
+    let orbitLines = [];
 
-      // 6. Conversion radians -> degrés et altitude en km
-      const longitude = satellite.degreesLong(positionGd.longitude);
-      const latitude = satellite.degreesLat(positionGd.latitude);
-      const altitude = positionGd.height; // Déjà en km
+    // 3. Remplissage du menu déroulant
+    const selectEl = document.getElementById('sat-select');
+    satellites.forEach((sat, index) => {
+      const opt = document.createElement('option');
+      opt.value = index;
+      opt.textContent = sat.name;
+      selectEl.appendChild(opt);
+    });
 
-      // 7. Affichage dans le DOM
-      document.getElementById('sat-name').textContent = satName;
-      document.getElementById('lat').textContent = latitude.toFixed(4) + '°';
-      document.getElementById('lng').textContent = longitude.toFixed(4) + '°';
-      document.getElementById('alt').textContent = altitude.toFixed(2);
-      document.getElementById('time').textContent = now.toLocaleTimeString();
+    // 4. Calcul de position géodétique à un instant T
+    function getLatLngAt(satrec, date) {
+      const positionAndVelocity = satellite.propagate(satrec, date);
+      if (!positionAndVelocity.position) return null;
+      
+      const gmst = satellite.gstime(date);
+      const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+      
+      return {
+        lat: satellite.degreesLat(positionGd.latitude),
+        lng: satellite.degreesLong(positionGd.longitude)
+      };
     }
 
-    // Premier calcul immédiat
-    updatePosition();
+    // 5. Tracé de l'orbite future (90 minutes)
+    function drawOrbit(satrec) {
+      // Nettoyer les anciennes lignes
+      orbitLines.forEach(line => map.removeLayer(line));
+      orbitLines = [];
 
-    // Actualisation de la position toutes les secondes
-    setInterval(updatePosition, 1000);
+      const now = new Date();
+      let segments = [];
+      let currentSegment = [];
+
+      // Calcul point par point toutes les minutes sur 90 min
+      for (let i = 0; i <= 90; i++) {
+        const futureTime = new Date(now.getTime() + i * 60 * 1000);
+        const pos = getLatLngAt(satrec, futureTime);
+
+        if (pos) {
+          if (currentSegment.length > 0) {
+            const prevLng = currentSegment[currentSegment.length - 1][1];
+            // Détection du saut de méridien (-180° / +180°)
+            if (Math.abs(pos.lng - prevLng) > 180) {
+              segments.push(currentSegment);
+              currentSegment = [];
+            }
+          }
+          currentSegment.push([pos.lat, pos.lng]);
+        }
+      }
+      if (currentSegment.length > 0) segments.push(currentSegment);
+
+      // Dessiner chaque segment sur la carte
+      segments.forEach(segment => {
+        const polyline = L.polyline(segment, { color: '#38bdf8', weight: 2, dashArray: '4, 4' }).addTo(map);
+        orbitLines.push(polyline);
+      });
+    }
+
+    // 6. Mise à jour complète de l'affichage
+    function update() {
+      const selectedSat = satellites[selectEl.value];
+      const satrec = satellite.twoline2satrec(selectedSat.line1, selectedSat.line2);
+      const currentPos = getLatLngAt(satrec, new Date());
+
+      if (currentPos) {
+        if (!marker) {
+          marker = L.marker([currentPos.lat, currentPos.lng]).addTo(map);
+        } else {
+          marker.setLatLng([currentPos.lat, currentPos.lng]);
+        }
+        marker.bindPopup(`<b>${selectedSat.name}</b>`).openPopup();
+      }
+
+      drawOrbit(satrec);
+    }
+
+    // Changement de satellite dans la liste
+    selectEl.addEventListener('change', update);
+
+    // Initialisation et rafraîchissement
+    update();
+    setInterval(update, 5000); // Mise à jour toutes les 5 secondes
   </script>
 </body>
 </html>
