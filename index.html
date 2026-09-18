@@ -331,24 +331,29 @@
       selectedNoradId = sat.NORAD_CAT_ID || "N/A";
       selectedEpoch = sat.EPOCH || "N/A";
 
-      // Extraction des lignes TLE 1 et 2
+      // Extraction et conversion en SatRec (Support TLE 2-lignes + OMM JSON CelesTrak Direct)
       const line1 = sat.TLE_LINE1 || sat.tle1 || sat.LINE1;
       const line2 = sat.TLE_LINE2 || sat.tle2 || sat.LINE2;
 
-      if (line1 && line2) {
-        try {
+      selectedSatrec = null;
+      try {
+        if (line1 && line2) {
+          // Format TLE classique à deux lignes
           selectedSatrec = satellite.twoline2satrec(line1.trim(), line2.trim());
-        } catch (err) {
-          console.error("Erreur de parsing TLE SGP4 :", err);
-          selectedSatrec = null;
+        } else if (typeof satellite.json2satrec === 'function') {
+          // Format OMM JSON natif fourni par CelesTrak
+          selectedSatrec = satellite.json2satrec(sat);
+        } else if (typeof satellite.jsonToSatrec === 'function') {
+          selectedSatrec = satellite.jsonToSatrec(sat);
         }
-      } else {
+      } catch (err) {
+        console.error("Erreur de parsing orbital SGP4 :", err);
         selectedSatrec = null;
       }
 
       if (!selectedSatrec) {
         satInfoDiv.classList.add('hidden');
-        statusEl.textContent = "Format TLE invalide pour ce satellite";
+        statusEl.textContent = "Format TLE/OMM invalide pour ce satellite";
         return;
       }
 
