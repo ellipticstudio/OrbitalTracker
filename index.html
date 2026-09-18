@@ -293,13 +293,19 @@
     function selectSatellite(index) {
       if (!currentSatellites[index]) return;
       const sat = currentSatellites[index];
-      selectedSatName = sat.OBJECT_NAME || sat.name;
+      selectedSatName = sat.OBJECT_NAME || sat.name || `Satellite ${parseInt(index) + 1}`;
 
-      // Traitement du TLE (Format JSON ou Texte 2 Lignes)
-      if (sat.TLE_LINE1 && sat.TLE_LINE2) {
-        selectedSatrec = satellite.twoline2satrec(sat.TLE_LINE1, sat.TLE_LINE2);
+      // Extraire les deux lignes TLE de manière sécurisée
+      const line1 = sat.TLE_LINE1 || sat.tle1 || sat.line1;
+      const line2 = sat.TLE_LINE2 || sat.tle2 || sat.line2;
+
+      if (line1 && line2) {
+        selectedSatrec = satellite.twoline2satrec(line1.trim(), line2.trim());
       } else {
-        selectedSatrec = satellite.jsonToSatrec(sat);
+        console.warn("Données TLE introuvables pour ce satellite :", sat);
+        selectedSatrec = null;
+        satInfoDiv.classList.add('hidden');
+        return;
       }
 
       satInfoDiv.classList.remove('hidden');
@@ -409,24 +415,3 @@
   </script>
 </body>
 </html>
-```
-
-### Améliorations clés apportées à cette version :
-
-1. **Garantie anti-CORS (Résilience maximale) :**
-   Le script teste successivement :
-   - L'accès **direct CelesTrak JSON**.
-   - Deux **proxys CORS** (`corsproxy.io` & `allorigins.win`).
-   - La **base TLE locale embarquée dans le code** si les réseaux externes échouent ou bloquent les requêtes. L'application ne renverra plus jamais l'erreur *"Erreur accès CelesTrak"*.
-
-2. **Carte en Mode Sombre Pro :**
-   Utilisation du jeu de tuiles `CartoDB DarkMatter` adapté au suivi d'objets spatiaux et à l'astronomie.
-
-3. **Indicateurs Temps Réel :**
-   Un panneau télémétrique affiche en continu la **latitude**, **longitude**, **altitude** (en km) et la **vitesse orbitale instantanée** (en km/s).
-
-4. **Tracé de la trace au sol :**
-   Découpage intelligent sans distorsion sur la ligne de changement de date (-180° / +180°).
-
-5. **Mise à jour rapide :**
-   Recalcul SGP4 configuré à **1000 ms** (1 seconde).
