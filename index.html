@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OrbitalTracker 2D - Suivi Satellite en Temps Réel</title>
+  <title>OrbitalTracker 2D</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -69,38 +69,8 @@
   <!-- Carte Plein Écran -->
   <div id="map" class="w-full h-full absolute inset-0 z-0"></div>
 
-  <!-- Sélecteur de Fond de Carte - Icône en Haut à Droite -->
-  <div class="absolute top-4 right-4 z-[1000] flex flex-col items-end">
-    <button id="btn-map-style-toggle" title="Changer de fond de carte" class="w-10 h-10 bg-slate-900/90 hover:bg-slate-800 text-amber-400 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex items-center justify-center transition-all duration-200 active:scale-95 group">
-      <i class="fa-solid fa-layer-group text-lg group-hover:scale-110 transition-transform"></i>
-    </button>
-    
-    <!-- Menu Flottant de Sélection des Fonds de Carte -->
-    <div id="map-style-menu" class="hidden mt-2 w-64 bg-slate-900/95 backdrop-blur-md p-3 rounded-2xl border border-slate-800 shadow-2xl space-y-1.5 transition-all">
-      <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2 px-1 flex items-center gap-2 border-b border-slate-800 pb-2">
-        <i class="fa-solid fa-map text-amber-400"></i> Choisir le Fond de Carte
-      </div>
-      <button data-style="esri-dark" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-amber-300 bg-amber-500/10 border border-amber-500/30 flex items-center justify-between transition">
-        <span>Esri World Dark Gray</span>
-        <i class="fa-solid fa-check text-[10px] check-icon"></i>
-      </button>
-      <button data-style="esri-satellite" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
-        <span>Esri Vue Satellite</span>
-        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
-      </button>
-      <button data-style="carto-dark" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
-        <span>CartoDB Dark</span>
-        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
-      </button>
-      <button data-style="osm-standard" class="map-style-option w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-transparent hover:border-slate-700 flex items-center justify-between transition">
-        <span>OpenStreetMap Standard</span>
-        <i class="fa-solid fa-check text-[10px] check-icon hidden"></i>
-      </button>
-    </div>
-  </div>
-
   <!-- Panneau de Contrôle Principal -->
-  <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
+  <div class="absolute top-4 left-4 z-[1000] w-80 md:w-96 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800 shadow-2xl opacity-75 hover:opacity-100 transition-all duration-300 max-h-[92vh] flex flex-col justify-between overflow-y-auto">
     
     <div>
       <!-- En-tête -->
@@ -112,27 +82,33 @@
           <div>
             <h1 class="font-bold text-sm uppercase tracking-wider text-slate-100">OrbitalTracker 2D</h1>
             <p class="text-[10px] text-sky-400 font-mono flex items-center gap-1">
-              <i class="fa-solid fa-code text-[9px]"></i> Mode Familles Personnalisées
+              Tracker satellite en temps réel
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-1">
-          <span id="badge-connection" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-mono cursor-default">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> SGP4 Actif
-          </span>
-        </div>
       </div>
 
-      <!-- Sélecteur de Famille Personnalisée -->
-      <div class="space-y-3">
+      <!-- Sélecteur de Mode et Famille -->
+      <div class="space-y-5">
+        <div class="flex justify-between items-center text-[10px] text-slate-400 px-1">
+          <span>Époque Courante (UTC) :</span>
+          <span id="info-current-epoch" class="font-mono text-sky-400 font-semibold">---</span>
+        </div>
+		<div>
+          <label for="mode-select" class="block text-xs font-semibold text-slate-300 mb-1">
+            <i class="fa-solid fa-server mr-1 text-sky-400"></i> Mode de Chargement TLE
+          </label>
+          <select id="mode-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
+            <option value="online">Mode ONLINE</option>
+            <option value="local">Mode LOCAL</option>
+          </select>
+        </div>
+
         <div>
           <div class="flex items-center justify-between mb-1">
             <label for="cat-select" class="block text-xs font-semibold text-slate-300">
               <i class="fa-solid fa-layer-group mr-1 text-sky-400"></i> Famille de Satellites
             </label>
-            <button id="btn-open-modal" class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium hover:underline transition">
-              <i class="fa-solid fa-folder-plus text-[10px]"></i> Gérer / Ajouter
-            </button>
           </div>
           <select id="cat-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 transition shadow-inner">
             <!-- Rempli dynamiquement -->
@@ -141,13 +117,19 @@
 
         <!-- Recherche rapide par NORAD ID -->
         <div class="p-2 bg-slate-950/80 rounded-xl border border-slate-800/80 space-y-1.5">
-          <label for="quick-norad-input" class="block text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-            <i class="fa-solid fa-bolt mr-1"></i> Recherche Rapide NORAD ID
-          </label>
+          <div class="flex items-center justify-between">
+            <label for="quick-norad-input" class="block text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+              <i class="fa-solid fa-bolt mr-1"></i> Recherche Rapide NORAD ID
+            </label>
+            <label for="local-file-input" class="text-[9px] text-sky-400 hover:text-sky-300 cursor-pointer underline flex items-center gap-1" title="Charger un fichier .txt ou .3le local">
+              <i class="fa-solid fa-folder-open"></i> Charger .txt
+            </label>
+            <input type="file" id="local-file-input" accept=".txt,.tle" class="hidden">
+          </div>
           <div class="flex gap-1.5">
             <input type="text" id="quick-norad-input" placeholder="Ex: 25544 ou 38755" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500">
             <button id="btn-quick-fetch" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1 rounded-lg text-xs font-semibold transition active:scale-95">
-              Charger
+              Recherche
             </button>
           </div>
         </div>
@@ -171,10 +153,11 @@
 
       <!-- Télémétrie en Direct -->
       <div id="sat-info" class="mt-4 pt-3 border-t border-slate-800/80 text-xs space-y-2 hidden">
-        <div class="flex justify-between items-center bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
-          <span class="text-slate-400">Identifiant NORAD :</span>
-          <span id="info-norad" class="font-mono text-slate-200 font-bold">#00000</span>
+        <div class="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1">
+          <span>Époque TLE (UTC) :</span>
+          <span id="info-epoch" class="font-mono text-amber-400">---</span>
         </div>
+
         <div class="grid grid-cols-2 gap-2">
           <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
             <span class="text-[10px] text-slate-400 block mb-0.5">Latitude</span>
@@ -185,25 +168,47 @@
             <span id="info-lng" class="font-mono text-sky-400 font-bold text-xs">0.0000°</span>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-2">
+
+        <div class="grid grid-cols-3 gap-1.5">
           <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
             <span class="text-[10px] text-slate-400 block mb-0.5">Altitude</span>
             <span id="info-alt" class="font-mono text-emerald-400 font-bold text-xs">0 km</span>
           </div>
           <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
-            <span class="text-[10px] text-slate-400 block mb-0.5">Vitesse Orbitale</span>
+            <span class="text-[10px] text-slate-400 block mb-0.5">Vitesse</span>
             <span id="info-vel" class="font-mono text-purple-400 font-bold text-xs">0 km/s</span>
           </div>
-        </div>
-        <div class="flex justify-between items-center text-[10px] text-slate-400 px-1 pt-1">
-          <span>Date Époque TLE :</span>
-          <span id="info-epoch" class="font-mono text-amber-400">---</span>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50">
+            <span class="text-[10px] text-slate-400 block mb-0.5">Inclinaison</span>
+            <span id="info-inc" class="font-mono text-amber-400 font-bold text-xs">0.00°</span>
+          </div>
         </div>
 
-        <!-- Action rapides -->
+        <!-- État d'Éclipse / Exposition Solaire -->
+        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/50 flex items-center justify-between">
+          <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1.5">
+            <i class="fa-solid fa-sun text-amber-400"></i> Exposition Solaire
+          </span>
+          <span id="info-eclipse" class="font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30 flex items-center gap-1.5 transition-colors duration-300">
+            <i class="fa-solid fa-sun text-[10px]"></i> Plein Soleil
+          </span>
+        </div>
+
+        <!-- Encadré Données TLE -->
+        <div class="bg-slate-950/80 p-2 rounded-xl border border-slate-800/80 space-y-1">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <i class="fa-solid fa-code text-amber-400 mr-1"></i> Lignes TLE
+          </span>
+          <pre id="info-tle" class="font-mono text-[9px] text-slate-300 whitespace-pre leading-tight select-all bg-slate-900/90 p-2 rounded border border-slate-800 overflow-x-auto font-normal">---</pre>
+        </div>
+
+        <!-- Actions rapides -->
         <div class="pt-2 flex flex-col gap-2">
           <button id="btn-recenter" class="w-full py-1.5 px-2 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
-            <i class="fa-solid fa-earth-americas text-[10px]"></i> Centrer sur (0°, 0°)
+            <i class="fa-solid fa-crosshairs text-[10px]"></i> Centrer sur le Satellite
+          </button>
+          <button id="btn-recenter-map" class="w-full py-1.5 px-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1.5 shadow">
+            <i class="fa-solid fa-globe text-[10px]"></i> Centrer sur la carte
           </button>
         </div>
       </div>
@@ -213,136 +218,92 @@
         <span class="flex items-center gap-1.5">
           <i class="fa-solid fa-border-all text-sky-400"></i> Grille Lat/Lng (15°)
         </span>
-        <input type="checkbox" id="toggle-grid" class="rounded accent-sky-500 w-4 h-4 cursor-pointer">
+        <input type="checkbox" id="toggle-grid" class="rounded accent-sky-500 w-4 h-4 cursor-pointer" checked>
+      </div>
+
+      <!-- Option du Masque Jour / Nuit -->
+      <div class="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-300">
+        <span class="flex items-center gap-1.5">
+          <i class="fa-solid fa-moon text-amber-300"></i> Masque Nuit / Jour
+        </span>
+        <input type="checkbox" id="toggle-night" class="rounded accent-amber-500 w-4 h-4 cursor-pointer" checked>
       </div>
     </div>
 
     <!-- Status Footer -->
     <div class="mt-4 text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-800/80 pt-2.5">
       <span id="status-text" class="truncate pr-2">Prêt</span>
-      <span class="text-sky-400 flex items-center gap-1 font-mono text-[10px] shrink-0">
-        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> SGP4
-      </span>
-    </div>
-  </div>
-
-  <!-- Modal de Gestion des Familles Personnalisées -->
-  <div id="custom-modal" class="hidden fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-folder-plus text-amber-400"></i> Créer une Famille Personnalisée
-        </h3>
-        <button id="btn-close-modal" class="text-slate-400 hover:text-slate-200 text-base">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label for="custom-cat-name" class="block text-xs font-semibold text-slate-300 mb-1">Nom de la famille</label>
-          <input type="text" id="custom-cat-name" placeholder="Ex: Mes Satellites Favoris" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
-        </div>
-
-        <div>
-          <label for="custom-cat-tle" class="block text-xs font-semibold text-slate-300 mb-1">
-            Identifiants NORAD (séparés par des virgules, espaces ou lignes)
-          </label>
-          <textarea id="custom-cat-tle" rows="4" placeholder="Ex: 25544, 48274, 20580, 38755" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 font-mono focus:outline-none focus:border-amber-500"></textarea>
-          <p class="text-[10px] text-slate-500 mt-1">Saisissez les numéros NORAD ID. L'application télécharge automatiquement leurs TLEs fraîches en direct lors de la sélection.</p>
-        </div>
-
-        <button id="btn-save-category" class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition shadow">
-          Ajouter la Famille
-        </button>
-      </div>
-
-      <div class="border-t border-slate-800 pt-3">
-        <h4 class="text-xs font-semibold text-slate-400 mb-2">Familles Personnalisées Enregistrées</h4>
-        <div id="custom-categories-list" class="space-y-2 max-h-36 overflow-y-auto pr-1">
-          <!-- Liste dynamique -->
-        </div>
-      </div>
     </div>
   </div>
 
   <script>
-    // Familles prédéfinies basées uniquement sur les identifiants NORAD ID (déclaré une seule fois)
+    // Familles prédéfinies pour le mode en ligne et local (~50 satellites répartis par collections)
     const CODE_PRESET_FAMILIES = [
-      {
-        id: 'code_stations',
-        name: 'Stations Spatiales',
-        noradIds: ['25544'] // ISS
-      },
       {
         id: 'code_ens',
         name: 'ENS',
         noradIds: ['38755', '40053', '48268', '49070']
+      },
+      {
+        id: 'code_arabsat',
+        name: 'ARABSAT',
+        noradIds: ['36745', '36592', '41029']
       }
     ];
 
     // Variables d'état global
+    let currentMode = 'online';
     let currentSatellites = [];
     let filteredSatellites = [];
     let selectedSatName = "";
     let selectedNoradId = "";
+    let selectedCurrentEpoch = "";
     let selectedEpoch = "";
+    let selectedLine1 = "";
+    let selectedLine2 = "";
     let selectedSatrec = null;
     let marker = null;
     let orbitLines = [];
+    let graticuleLayer = null;
+    let nightLayer = null;
+    let localTleCache = null;
 
     // Références des éléments du DOM
+    const modeSelect = document.getElementById('mode-select');
     const catSelect = document.getElementById('cat-select');
     const satSearch = document.getElementById('sat-search');
     const satSelect = document.getElementById('sat-select');
     const satCount = document.getElementById('sat-count');
     const quickNoradInput = document.getElementById('quick-norad-input');
     const btnQuickFetch = document.getElementById('btn-quick-fetch');
+    const localFileInput = document.getElementById('local-file-input');
     const satInfoDiv = document.getElementById('sat-info');
     const btnRecenter = document.getElementById('btn-recenter');
+    const btnRecenterMap = document.getElementById('btn-recenter-map');
     const toggleGrid = document.getElementById('toggle-grid');
+    const toggleNight = document.getElementById('toggle-night');
     const statusEl = document.getElementById('status-text');
-    const btnMapStyleToggle = document.getElementById('btn-map-style-toggle');
-    const mapStyleMenu = document.getElementById('map-style-menu');
-    const btnOpenModal = document.getElementById('btn-open-modal');
-    const btnCloseModal = document.getElementById('btn-close-modal');
-    const modal = document.getElementById('custom-modal');
-    const btnSaveCategory = document.getElementById('btn-save-category');
-    const customCategoriesList = document.getElementById('custom-categories-list');
 
-    // Configuration des couches de fonds de carte Leaflet
-    const mapTiles = {
-      'esri-dark': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 16,
-        attribution: 'Tiles &copy; Esri'
-      }),
-      'esri-satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
-        attribution: 'Tiles &copy; Esri'
-      }),
-      'carto-dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
-      }),
-      'osm-standard': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      })
-    };
-
-    // Initialisation de la carte
+    // Initialisation de la carte Leaflet EPSG4326
+    const mapBounds = [[-90, -180], [90, 180]];
     const map = L.map('map', {
+      crs: L.CRS.EPSG4326,
       center: [0, 0],
       zoom: 2,
-      minZoom: 2,
-      maxZoom: 18,
-      layers: [mapTiles['esri-dark']],
-      worldCopyJump: true
+      minZoom: 1,
+      maxZoom: 8,
+      maxBounds: mapBounds,
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false
     });
 
-    let activeTileLayer = mapTiles['esri-dark'];
+    // Chargement de l'image de fond
+    const mapImageOverlay = L.imageOverlay('./maps/Blue_Marble_2002.jpg', mapBounds, {
+      opacity: 1.0,
+      interactive: false
+    }).addTo(map);
 
-    // Icône personnalisée pour le satellite
+    // Icône personnalisée satellite
     const satIcon = L.divIcon({
       className: 'custom-sat-icon',
       html: `
@@ -357,10 +318,9 @@
       iconAnchor: [16, 16]
     });
 
-    // Création du quadrillage géographique Lat/Lng (15°)
     function createGraticuleLayer() {
       const lines = [];
-      for (let lat = -75; lat <= 75; lat += 15) {
+      for (let lat = -90; lat <= 90; lat += 15) {
         const color = (lat === 0) ? '#06b6d4' : '#334155';
         const weight = (lat === 0) ? 2 : 1;
         const polyline = L.polyline([[lat, -180], [lat, 180]], { color, weight, opacity: 0.5, dashArray: lat === 0 ? null : '4, 4' });
@@ -369,30 +329,164 @@
       for (let lng = -180; lng <= 180; lng += 15) {
         const color = (lng === 0) ? '#06b6d4' : '#334155';
         const weight = (lng === 0) ? 2 : 1;
-        const polyline = L.polyline([[-85, lng], [85, lng]], { color, weight, opacity: 0.5, dashArray: lng === 0 ? null : '4, 4' });
+        const polyline = L.polyline([[-90, lng], [90, lng]], { color, weight, opacity: 0.5, dashArray: lng === 0 ? null : '4, 4' });
         lines.push(polyline);
       }
       return L.layerGroup(lines);
     }
 
-    const graticuleGroup = createGraticuleLayer();
+    function getSolarPosition(date) {
+      const rad = Math.PI / 180;
+      const deg = 180 / Math.PI;
+      const julianDate = date.getTime() / 86400000 + 2440587.5;
+      const d = julianDate - 2451545.0;
 
-    toggleGrid.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        graticuleGroup.addTo(map);
-      } else {
-        map.removeLayer(graticuleGroup);
+      const L_sun = (280.460 + 0.9856474 * d) % 360;
+      const M_sun = ((357.528 + 0.9856003 * d) % 360) * rad;
+      const lambda = (L_sun + 1.915 * Math.sin(M_sun) + 0.020 * Math.sin(2 * M_sun)) * rad;
+      const obq = (23.439 - 0.0000004 * d) * rad;
+
+      const sinDec = Math.sin(obq) * Math.sin(lambda);
+      const latSun = Math.asin(sinDec) * deg;
+
+      const ra = Math.atan2(Math.cos(obq) * Math.sin(lambda), Math.cos(lambda)) * deg;
+      const gmst = (280.46061837 + 360.98564736629 * d) % 360;
+      let lngSun = ra - gmst;
+      while (lngSun > 180) lngSun -= 360;
+      while (lngSun < -180) lngSun += 360;
+
+      return { lat: latSun, lng: lngSun };
+    }
+
+    function getSunPositionECI(date) {
+      const jd = (date.getTime() / 86400000) + 2440587.5;
+      const T = (jd - 2451545.0) / 36525;
+      const rad = Math.PI / 180;
+
+      const L0 = (280.46646 + 36000.76983 * T) % 360;
+      const M = ((357.52911 + 35999.05029 * T) % 360) * rad;
+
+      const C = (1.914602 - 0.004817 * T) * Math.sin(M) + (0.019993 - 0.000101 * T) * Math.sin(2 * M);
+      const lambda = ((L0 + C) % 360) * rad;
+      const epsilon = (23.439291 - 0.0130042 * T) * rad;
+
+      return {
+        x: Math.cos(lambda),
+        y: Math.cos(epsilon) * Math.sin(lambda),
+        z: Math.sin(epsilon) * Math.sin(lambda)
+      };
+    }
+
+    function getEclipseState(positionEci, date) {
+      if (!positionEci || typeof positionEci.x !== 'number') {
+        return { label: 'Inconnu', icon: 'fa-question', colorClass: 'bg-slate-800 text-slate-400 border-slate-700' };
       }
-    });
 
-    // Analyseurs TLE
+      const sunUnit = getSunPositionECI(date);
+      const RE = 6378.137;
+      const RS = 696000;
+      const AU = 149597870.7;
+
+      const dProj = positionEci.x * sunUnit.x + positionEci.y * sunUnit.y + positionEci.z * sunUnit.z;
+
+      if (dProj >= 0) {
+        return { label: 'Plein Soleil', icon: 'fa-sun', colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+      }
+
+      const rSatSq = positionEci.x ** 2 + positionEci.y ** 2 + positionEci.z ** 2;
+      const dPerp = Math.sqrt(Math.max(0, rSatSq - dProj ** 2));
+      const zShadow = Math.abs(dProj);
+
+      const alphaUmbra = Math.asin((RS - RE) / AU);
+      const alphaPenumbra = Math.asin((RS + RE) / AU);
+
+      const rUmbra = RE - zShadow * Math.tan(alphaUmbra);
+      const rPenumbra = RE + zShadow * Math.tan(alphaPenumbra);
+
+      if (dPerp <= Math.max(0, rUmbra)) {
+        return { label: 'Éclipse (Ombre)', icon: 'fa-moon', colorClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' };
+      } else if (dPerp <= rPenumbra) {
+        return { label: 'Pénombre', icon: 'fa-cloud-sun', colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30' };
+      } else {
+        return { label: 'Plein Soleil', icon: 'fa-sun', colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+      }
+    }
+
+    function updateNightMask() {
+      if (!toggleNight || !toggleNight.checked) {
+        if (nightLayer) {
+          map.removeLayer(nightLayer);
+          nightLayer = null;
+        }
+        return;
+      }
+
+      const now = new Date();
+      const sunPos = getSolarPosition(now);
+      const latSun = sunPos.lat;
+      const lngSun = sunPos.lng;
+
+      const points = [];
+      const rad = Math.PI / 180;
+      const deg = 180 / Math.PI;
+
+      for (let lng = -180; lng <= 180; lng += 1) {
+        const dLng = (lng - lngSun) * rad;
+        let termLat;
+        if (Math.abs(latSun) < 0.0001) {
+          termLat = 0;
+        } else {
+          const tanLatSun = Math.tan(latSun * rad);
+          const tanTermLat = -Math.cos(dLng) / tanLatSun;
+          termLat = Math.atan(tanTermLat) * deg;
+        }
+        termLat = Math.max(-90, Math.min(90, termLat));
+        points.push([termLat, lng]);
+      }
+
+      const nightPolyCoords = [];
+      if (latSun >= 0) {
+        nightPolyCoords.push(...points);
+        nightPolyCoords.push([-90, 180]);
+        nightPolyCoords.push([-90, -180]);
+      } else {
+        nightPolyCoords.push(...points);
+        nightPolyCoords.push([90, 180]);
+        nightPolyCoords.push([90, -180]);
+      }
+
+      if (nightLayer) {
+        map.removeLayer(nightLayer);
+      }
+
+      nightLayer = L.polygon(nightPolyCoords, {
+        color: '#312e81',
+        fillColor: '#020617',
+        fillOpacity: 0.55,
+        weight: 1.5,
+        stroke: true,
+        interactive: false
+      }).addTo(map);
+    }
+
+    function tleEpochToGregorianUTC(epochYearStr, epochDayStr) {
+      let year = parseInt(epochYearStr, 10);
+      year += (year < 57) ? 2000 : 1900;
+      const dayOfYear = parseFloat(epochDayStr);
+      const startOfYear = Date.UTC(year, 0, 1, 0, 0, 0);
+      const epochMs = startOfYear + (dayOfYear - 1) * 86400 * 1000;
+      const d = new Date(epochMs);
+      return d.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+    }
+
     function parseSingleTLE(name, noradId, line1, line2) {
       const epochYear = line1.substring(18, 20);
       const epochDay = line1.substring(20, 32);
+      const epochUTC = tleEpochToGregorianUTC(epochYear, epochDay);
       return {
         OBJECT_NAME: name || `SAT-${noradId}`,
         NORAD_CAT_ID: noradId,
-        EPOCH: `20${epochYear} (Jour ${parseFloat(epochDay).toFixed(1)})`,
+        EPOCH: epochUTC,
         line1: line1,
         line2: line2
       };
@@ -400,107 +494,176 @@
 
     function parseTLEText(tleText) {
       if (!tleText) return [];
-      const lines = tleText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const rawLines = tleText.split(/\r?\n/).map(l => l.trim());
       const sats = [];
-      
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('1 ') && i > 0 && i + 1 < lines.length && lines[i + 1].startsWith('2 ')) {
-          const nameLine = lines[i - 1];
-          const line1 = lines[i];
-          const line2 = lines[i + 1];
-          
-          const objectName = nameLine.startsWith('1 ') ? `SAT-${line1.substring(2, 7).trim()}` : nameLine;
-          const noradId = line1.substring(2, 7).trim();
-          
-          sats.push(parseSingleTLE(objectName, noradId, line1, line2));
-          i += 1;
+
+      let i = 0;
+      while (i < rawLines.length) {
+        const line = rawLines[i];
+        
+        // Vérification si la ligne courante est une ligne 1 TLE valide
+        if (line.startsWith('1 ') && line.length >= 60) {
+          if (i + 1 < rawLines.length && rawLines[i + 1].startsWith('2 ') && rawLines[i + 1].length >= 60) {
+            let name = '';
+            
+            // Recherche du nom (Ligne 0) dans les lignes précédentes non vides
+            let searchIdx = i - 1;
+            while (searchIdx >= 0 && rawLines[searchIdx].length === 0) {
+              searchIdx--;
+            }
+
+            if (searchIdx >= 0) {
+              const prevLine = rawLines[searchIdx];
+              if (!prevLine.startsWith('1 ') && !prevLine.startsWith('2 ')) {
+                name = prevLine;
+                if (name.startsWith('0 ')) {
+                  name = name.substring(2).trim();
+                }
+              }
+            }
+
+            const line1 = line;
+            const line2 = rawLines[i + 1];
+            const noradId = line1.substring(2, 7).trim();
+
+            if (!name) {
+              name = `SAT-${noradId}`;
+            }
+
+            sats.push(parseSingleTLE(name, noradId, line1, line2));
+            i += 2; // Saut de la ligne 1 et ligne 2
+            continue;
+          }
         }
+        i++;
       }
       return sats;
     }
 
-    // Récupération dynamique des TLEs fraîches en ligne
+    async function getLocalTleContent() {
+      if (localTleCache !== null) return localTleCache;
+
+      const pathsToTry = [
+        './tle/alltle.txt',
+        'tle/alltle.txt',
+        'alltle.txt'
+      ];
+
+      for (const path of pathsToTry) {
+        try {
+          const response = await fetchWithTimeout(path, {}, 2000);
+          if (response.ok) {
+            const text = await response.text();
+            if (text && text.trim().length > 0) {
+              localTleCache = text;
+              return localTleCache;
+            }
+          }
+        } catch (err) {
+          // Échec de lecture silencieux pour tester le chemin suivant
+        }
+      }
+      return null;
+    }
+
+    async function fetchTLEFromLocalFile(noradId) {
+      const targetNum = parseInt(noradId, 10);
+      if (isNaN(targetNum)) return null;
+
+      const text = await getLocalTleContent();
+      if (!text) return null;
+
+      const sats = parseTLEText(text);
+      return sats.find(s => parseInt(s.NORAD_CAT_ID, 10) === targetNum) || null;
+    }
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 2500) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
+      }
+    }
+
     async function fetchTLEByNorad(noradId) {
       const cleanId = String(noradId).trim();
       if (!cleanId) return null;
 
-      // Source principale: API TLE Ivan Stanojevic
+      // 1. API Ivan Stanojevic (Supporte CORS nativement et rapide)
       try {
-        const response = await fetch(`https://tle.ivanstanojevic.me/api/tle/${cleanId}`);
-        if (response.ok) {
-          const data = await response.json();
+        const res = await fetchWithTimeout(`https://tle.ivanstanojevic.me/api/tle/${cleanId}`, {}, 2500);
+        if (res.ok) {
+          const data = await res.json();
           if (data.line1 && data.line2) {
-            return parseSingleTLE(data.name || `Satellite ${cleanId}`, cleanId, data.line1, data.line2);
+            return parseSingleTLE(data.name || `SAT-${cleanId}`, cleanId, data.line1, data.line2);
           }
         }
       } catch (err) {
-        console.warn(`[Primary API] Échec NORAD #${cleanId}`, err);
+        console.warn(`[API Ivan Stanojevic] NORAD #${cleanId} non disponible/timeout`);
       }
 
-      // Source secondaire: CelesTrak via AllOrigins CORS proxy
+      // 2. Proxy AllOrigins -> Celestrak TLE
       try {
         const celestrakUrl = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${cleanId}&FORMAT=TLE`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(celestrakUrl)}`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) {
-          const text = await response.text();
+        const res = await fetchWithTimeout(proxyUrl, {}, 3000);
+        if (res.ok) {
+          const text = await res.text();
           const parsed = parseTLEText(text);
           if (parsed.length > 0) return parsed[0];
         }
       } catch (err) {
-        console.warn(`[Secondary Proxy] Échec NORAD #${cleanId}`, err);
+        console.warn(`[Celestrak Proxy] NORAD #${cleanId} non disponible/timeout`);
       }
 
-      return null;
-    }
-
-    // Gestion de localStorage pour les familles utilisateur
-    function getUserCustomCategories() {
+      // 3. Celestrak Direct JSON API
       try {
-        return JSON.parse(localStorage.getItem('orbital_custom_cats_ids') || '[]');
-      } catch (e) {
-        return [];
+        const celestrakJsonUrl = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${cleanId}&FORMAT=json`;
+        const res = await fetchWithTimeout(celestrakJsonUrl, {}, 2500);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0 && data[0].TLE_LINE1 && data[0].TLE_LINE2) {
+            const item = data[0];
+            return parseSingleTLE(
+              item.OBJECT_NAME || `SAT-${cleanId}`,
+              cleanId,
+              item.TLE_LINE1,
+              item.TLE_LINE2
+            );
+          }
+        }
+      } catch (err) {
+        console.warn(`[Celestrak JSON] NORAD #${cleanId} non disponible/timeout`);
       }
-    }
 
-    function saveUserCustomCategory(name, noradString) {
-      if (!name || !noradString) return;
-      const cats = getUserCustomCategories();
-      const newCat = { id: 'user_' + Date.now(), name, rawInput: noradString };
-      cats.push(newCat);
-      localStorage.setItem('orbital_custom_cats_ids', JSON.stringify(cats));
-      renderCategoryDropdown(newCat.id);
-    }
-
-    function deleteCustomCategory(id) {
-      let cats = getUserCustomCategories();
-      cats = cats.filter(c => c.id !== id);
-      localStorage.setItem('orbital_custom_cats_ids', JSON.stringify(cats));
-      renderCategoryDropdown();
-      renderCustomCategoriesList();
+      // 4. Repli immédiat sur le fichier local ./tle/alltle.txt
+      return await fetchTLEFromLocalFile(cleanId);
     }
 
     function renderCategoryDropdown(selectId = null) {
       catSelect.innerHTML = '';
 
-      // Presets
+      // En mode local, on offre aussi l'option d'afficher l'intégralité du fichier
+      if (currentMode === 'local') {
+        const optAll = document.createElement('option');
+        optAll.value = 'all_local';
+        optAll.textContent = '--- Tous les satellites du fichier local ---';
+        catSelect.appendChild(optAll);
+      }
+
       CODE_PRESET_FAMILIES.forEach(cat => {
         const opt = document.createElement('option');
         opt.value = cat.id;
-        opt.textContent = `[Code] ${cat.name}`;
+        opt.textContent = cat.name;
         catSelect.appendChild(opt);
       });
 
-      // Familles de l'utilisateur
-      const userCats = getUserCustomCategories();
-      userCats.forEach(cat => {
-        const opt = document.createElement('option');
-        opt.value = cat.id;
-        opt.textContent = `[Perso] ${cat.name}`;
-        catSelect.appendChild(opt);
-      });
-
-      if (selectId) {
+      if (selectId && Array.from(catSelect.options).some(o => o.value === selectId)) {
         catSelect.value = selectId;
       }
 
@@ -509,85 +672,108 @@
       }
     }
 
-    function renderCustomCategoriesList() {
-      if (!customCategoriesList) return;
-      const cats = getUserCustomCategories();
-      if (cats.length === 0) {
-        customCategoriesList.innerHTML = '<p class="text-xs text-slate-500 italic">Aucune famille enregistrée</p>';
-        return;
-      }
-      customCategoriesList.innerHTML = cats.map(cat => `
-        <div class="flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs">
-          <div>
-            <span class="font-bold text-slate-200 block">${cat.name}</span>
-            <span class="text-[10px] text-slate-400 font-mono">IDs: ${cat.rawInput}</span>
-          </div>
-          <button onclick="deleteCustomCategory('${cat.id}')" class="text-rose-400 hover:text-rose-300 p-1" title="Supprimer">
-            <i class="fa-solid fa-trash text-xs"></i>
-          </button>
-        </div>
-      `).join('');
-    }
-
     async function loadSelectedCategory(catId) {
-      statusEl.textContent = "Téléchargement des TLEs en ligne...";
-      satSelect.innerHTML = "<option value=''>Récupération des données TLE...</option>";
-      satCount.textContent = "0 objet";
       satSearch.value = "";
 
-      let noradIds = [];
+      if (currentMode === 'online') {
+        // --- MODE ONLINE (via API) ---
+        statusEl.textContent = "Téléchargement des TLEs en ligne...";
+        satSelect.innerHTML = "<option value=''>Récupération via API...</option>";
+        satCount.textContent = "0 objet";
 
-      const preset = CODE_PRESET_FAMILIES.find(c => c.id === catId);
-      if (preset) {
-        noradIds = preset.noradIds;
-      } else {
-        const userCat = getUserCustomCategories().find(c => c.id === catId);
-        if (userCat) {
-          noradIds = userCat.rawInput
-            .split(/[\s,]+/)
-            .map(s => s.trim())
-            .filter(s => s.length > 0);
+        const preset = CODE_PRESET_FAMILIES.find(c => c.id === catId);
+        const noradIds = preset ? preset.noradIds : [];
+
+        if (noradIds.length === 0) {
+          statusEl.textContent = "Aucun ID NORAD dans cette famille";
+          currentSatellites = [];
+          filteredSatellites = [];
+          renderSatelliteOptions([]);
+          return;
         }
-      }
 
-      if (noradIds.length === 0) {
-        statusEl.textContent = "Aucun ID NORAD dans cette famille";
-        currentSatellites = [];
-        filteredSatellites = [];
-        renderSatelliteOptions([]);
-        return;
-      }
+        const results = await Promise.all(noradIds.map(id => fetchTLEByNorad(id)));
+        const fetched = results.filter(sat => sat !== null);
 
-      // Téléchargement parallèle des TLEs fraîches
-      const results = await Promise.all(noradIds.map(id => fetchTLEByNorad(id)));
-      const fetched = results.filter(sat => sat !== null);
+        currentSatellites = fetched;
+        filteredSatellites = fetched;
+        renderSatelliteOptions(filteredSatellites);
 
-      currentSatellites = fetched;
-      filteredSatellites = fetched;
-      renderSatelliteOptions(filteredSatellites);
-
-      if (fetched.length > 0) {
-        statusEl.textContent = `${fetched.length}/${noradIds.length} TLE(s) téléchargée(s) en direct`;
-        selectSatellite(0);
+        if (fetched.length > 0) {
+          statusEl.textContent = `${fetched.length}/${noradIds.length} TLE(s) chargée(s) via API (ONLINE)`;
+          selectSatellite(0);
+        } else {
+          statusEl.textContent = "Échec API en ligne. Basculez en mode LOCAL si nécessaire.";
+        }
       } else {
-        statusEl.textContent = "Échec de récupération TLE en ligne";
+        // --- MODE LOCAL (lecture ./tle/alltle.txt) ---
+        statusEl.textContent = "Chargement depuis le fichier local ./tle/alltle.txt...";
+        satSelect.innerHTML = "<option value=''>Lecture du fichier TLE local...</option>";
+        satCount.textContent = "0 objet";
+
+        const text = await getLocalTleContent();
+        if (!text) {
+          statusEl.textContent = "Fichier local introuvable. Utilisez 'Charger .txt'.";
+          satSelect.innerHTML = "<option value=''>Fichier local inaccessible</option>";
+          currentSatellites = [];
+          filteredSatellites = [];
+          return;
+        }
+
+        const allParsed = parseTLEText(text);
+
+        if (catId === 'all_local') {
+          currentSatellites = allParsed;
+        } else {
+          const preset = CODE_PRESET_FAMILIES.find(c => c.id === catId);
+          const targetIds = new Set((preset ? preset.noradIds : []).map(id => String(parseInt(id, 10))));
+          currentSatellites = allParsed.filter(s => targetIds.has(String(parseInt(s.NORAD_CAT_ID, 10))));
+        }
+
+        filteredSatellites = currentSatellites;
+        renderSatelliteOptions(filteredSatellites);
+
+        if (filteredSatellites.length > 0) {
+          statusEl.textContent = `${filteredSatellites.length} satellite(s) filtré(s) depuis le fichier local`;
+          selectSatellite(0);
+        } else {
+          statusEl.textContent = "Aucun satellite correspondant trouvé dans le fichier local.";
+        }
       }
     }
 
     async function quickFetchNorad(noradId) {
-      if (!noradId) return;
-      statusEl.textContent = `Recherche du NORAD #${noradId}...`;
-      
-      const sat = await fetchTLEByNorad(noradId);
+      const cleanId = String(noradId).trim();
+      if (!cleanId) return;
 
-      if (sat) {
-        currentSatellites = [sat];
-        filteredSatellites = [sat];
-        renderSatelliteOptions(filteredSatellites);
-        selectSatellite(0);
-        statusEl.textContent = `NORAD #${noradId} trouvé (${sat.OBJECT_NAME})`;
+      if (currentMode === 'online') {
+        // Recherche Rapide via API
+        statusEl.textContent = `Recherche API du NORAD #${cleanId}...`;
+        const sat = await fetchTLEByNorad(cleanId);
+
+        if (sat) {
+          currentSatellites = [sat];
+          filteredSatellites = [sat];
+          renderSatelliteOptions(filteredSatellites);
+          selectSatellite(0);
+          statusEl.textContent = `NORAD #${cleanId} trouvé via API (${sat.OBJECT_NAME})`;
+        } else {
+          statusEl.textContent = `NORAD #${cleanId} introuvable en ligne`;
+        }
       } else {
-        statusEl.textContent = `NORAD #${noradId} introuvable`;
+        // Recherche Rapide via Fichier Local
+        statusEl.textContent = `Recherche dans le fichier local du NORAD #${cleanId}...`;
+        const sat = await fetchTLEFromLocalFile(cleanId);
+
+        if (sat) {
+          currentSatellites = [sat];
+          filteredSatellites = [sat];
+          renderSatelliteOptions(filteredSatellites);
+          selectSatellite(0);
+          statusEl.textContent = `NORAD #${cleanId} trouvé dans le fichier local (${sat.OBJECT_NAME})`;
+        } else {
+          statusEl.textContent = `NORAD #${cleanId} introuvable dans le fichier local`;
+        }
       }
     }
 
@@ -600,12 +786,22 @@
         return;
       }
 
-      satellites.forEach((sat, idx) => {
+      const MAX_RENDER = 500;
+      const listToRender = satellites.slice(0, MAX_RENDER);
+
+      listToRender.forEach((sat, idx) => {
         const opt = document.createElement('option');
         opt.value = idx;
         opt.textContent = `${sat.OBJECT_NAME} (#${sat.NORAD_CAT_ID})`;
         satSelect.appendChild(opt);
       });
+
+      if (satellites.length > MAX_RENDER) {
+        const opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = `... et ${satellites.length - MAX_RENDER} autres (affinez la recherche)`;
+        satSelect.appendChild(opt);
+      }
     }
 
     function selectSatellite(index) {
@@ -615,10 +811,13 @@
       selectedSatName = sat.OBJECT_NAME;
       selectedNoradId = sat.NORAD_CAT_ID;
       selectedEpoch = sat.EPOCH;
+      selectedLine1 = sat.line1;
+      selectedLine2 = sat.line2;
 
       try {
         selectedSatrec = satellite.twoline2satrec(sat.line1, sat.line2);
         satInfoDiv.classList.remove('hidden');
+        drawOrbit(selectedSatrec);
         updatePosition(true);
       } catch (err) {
         console.error("Erreur d'initialisation SGP4", err);
@@ -639,7 +838,7 @@
 
       const lat = satellite.radiansToDegrees(positionGd.latitude);
       let lng = satellite.radiansToDegrees(positionGd.longitude);
-      const alt = positionGd.height; // en km
+      const alt = positionGd.height;
 
       while (lng > 180) lng -= 360;
       while (lng < -180) lng += 360;
@@ -649,7 +848,55 @@
         speed = Math.sqrt(velocityEci.x ** 2 + velocityEci.y ** 2 + velocityEci.z ** 2);
       }
 
-      return { lat, lng, alt, speed };
+      return { lat, lng, alt, speed, positionEci };
+    }
+
+    function drawOrbit(satrec) {
+      orbitLines.forEach(line => map.removeLayer(line));
+      orbitLines = [];
+
+      if (!satrec) return;
+
+      const now = new Date();
+      const minOffset = -25; // 25 minutes dans le passé
+      const maxOffset = 125;  // 125 minutes dans le futur
+
+      // Calcul des positions minute par minute
+      const points = [];
+      for (let i = minOffset; i <= maxOffset; i += 1) {
+        const time = new Date(now.getTime() + i * 60 * 1000);
+        const pos = calculatePosition(satrec, time);
+        if (pos) {
+          points.push({ lat: pos.lat, lng: pos.lng, step: i });
+        }
+      }
+
+      // Tracé sous-segment par sous-segment avec opacité progressive
+      for (let k = 0; k < points.length - 1; k++) {
+        const p1 = points[k];
+        const p2 = points[k + 1];
+
+        // Éviter le saut visuel lors de la traversée de l'anti-méridien (180°)
+        if (Math.abs(p2.lng - p1.lng) > 180) continue;
+
+        // Normalisation de [-90, +90] vers [0, 1]
+        const ratio = (p1.step - minOffset) / (maxOffset - minOffset);
+        
+        // Progression continue : -90 min -> 0.15 | 0 min -> 0.55 | +90 min -> 0.95
+        const opacity = 0.15 + ratio * 0.9;
+
+        const isFuture = p1.step >= 0;
+        const color = isFuture ? '#06b6d4' : '#38bdf8';
+
+        const polyline = L.polyline([[p1.lat, p1.lng], [p2.lat, p2.lng]], {
+          color: color,
+          weight: 2,
+          opacity: opacity,
+          dashArray: '4, 4' // Lignes maintenues en pointillés sur toute l'orbite
+        }).addTo(map);
+
+        orbitLines.push(polyline);
+      }
     }
 
     function updatePosition(recenter = false) {
@@ -663,177 +910,112 @@
         return;
       }
 
-      // Mise à jour des valeurs de télémétrie
-      document.getElementById('info-norad').textContent = `#${selectedNoradId}`;
       document.getElementById('info-lat').textContent = `${pos.lat.toFixed(4)}°`;
       document.getElementById('info-lng').textContent = `${pos.lng.toFixed(4)}°`;
       document.getElementById('info-alt').textContent = `${Math.round(pos.alt)} km`;
       document.getElementById('info-vel').textContent = `${pos.speed.toFixed(2)} km/s`;
+      
+      if (selectedSatrec && typeof selectedSatrec.inclo === 'number') {
+        const incDeg = (selectedSatrec.inclo * (180 / Math.PI)).toFixed(2);
+        document.getElementById('info-inc').textContent = `${incDeg}°`;
+      }
+
+      const eclipse = getEclipseState(pos.positionEci, now);
+      const eclipseEl = document.getElementById('info-eclipse');
+      if (eclipseEl) {
+        eclipseEl.className = `font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 transition-colors duration-300 ${eclipse.colorClass}`;
+        eclipseEl.innerHTML = `<i class="fa-solid ${eclipse.icon} text-[10px]"></i> ${eclipse.label}`;
+      }
+
       document.getElementById('info-epoch').textContent = selectedEpoch;
+      document.getElementById('info-current-epoch').textContent = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      document.getElementById('info-tle').textContent = `${selectedLine1}\n${selectedLine2}`;
 
       const latLng = [pos.lat, pos.lng];
 
       if (!marker) {
         marker = L.marker(latLng, { icon: satIcon }).addTo(map);
-        marker.bindPopup(`
-          <div class="p-1 text-xs">
-            <strong class="text-sky-400 text-sm block mb-1">${selectedSatName}</strong>
-            <div>NORAD ID: #${selectedNoradId}</div>
-            <div>Altitude: ${Math.round(pos.alt)} km</div>
-            <div>Vitesse: ${pos.speed.toFixed(2)} km/s</div>
-          </div>
-        `);
       } else {
         marker.setLatLng(latLng);
-        marker.getPopup().setContent(`
-          <div class="p-1 text-xs">
-            <strong class="text-sky-400 text-sm block mb-1">${selectedSatName}</strong>
-            <div>NORAD ID: #${selectedNoradId}</div>
-            <div>Altitude: ${Math.round(pos.alt)} km</div>
-            <div>Vitesse: ${pos.speed.toFixed(2)} km/s</div>
-          </div>
-        `);
       }
 
       if (recenter) {
         map.setView(latLng, map.getZoom());
       }
-
-      // Tracé de la trajectoire orbitale
-      orbitLines.forEach(line => map.removeLayer(line));
-      orbitLines = [];
-
-      const orbitPoints = [];
-      const stepMinutes = 1.5;
-      const totalSteps = 60;
-
-      for (let i = -totalSteps / 2; i <= totalSteps / 2; i++) {
-        const timeOffset = new Date(now.getTime() + i * stepMinutes * 60000);
-        const orbitPos = calculatePosition(selectedSatrec, timeOffset);
-        if (orbitPos) {
-          orbitPoints.push([orbitPos.lat, orbitPos.lng]);
-        }
-      }
-
-      let currentSegment = [];
-      for (let i = 0; i < orbitPoints.length; i++) {
-        if (i === 0) {
-          currentSegment.push(orbitPoints[i]);
-          continue;
-        }
-
-        const prevLng = orbitPoints[i - 1][1];
-        const currLng = orbitPoints[i][1];
-
-        if (Math.abs(currLng - prevLng) > 180) {
-          if (currentSegment.length > 1) {
-            const polyline = L.polyline(currentSegment, { color: '#f59e0b', weight: 2, opacity: 0.85, dashArray: '5, 5' }).addTo(map);
-            orbitLines.push(polyline);
-          }
-          currentSegment = [orbitPoints[i]];
-        } else {
-          currentSegment.push(orbitPoints[i]);
-        }
-      }
-
-      if (currentSegment.length > 1) {
-        const polyline = L.polyline(currentSegment, { color: '#f59e0b', weight: 2, opacity: 0.85, dashArray: '5, 5' }).addTo(map);
-        orbitLines.push(polyline);
-      }
     }
 
-    catSelect.addEventListener('change', (e) => loadSelectedCategory(e.target.value));
-
-    satSelect.addEventListener('change', (e) => selectSatellite(parseInt(e.target.value)));
-
-    satSearch.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      filteredSatellites = currentSatellites.filter(sat => 
-        sat.OBJECT_NAME.toLowerCase().includes(query) || 
-        sat.NORAD_CAT_ID.includes(query)
-      );
-      renderSatelliteOptions(filteredSatellites);
-      if (filteredSatellites.length > 0) {
-        selectSatellite(0);
-      }
-    });
-
-    btnQuickFetch.addEventListener('click', () => {
-      const val = quickNoradInput.value.trim();
-      if (val) quickFetchNorad(val);
-    });
-
-    quickNoradInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        const val = quickNoradInput.value.trim();
-        if (val) quickFetchNorad(val);
-      }
-    });
-
-    btnRecenter.addEventListener('click', () => {
-      map.setView([0, 0], 2);
-    });
-
-    // Toggle menu fonds de carte
-    btnMapStyleToggle.addEventListener('click', () => {
-      mapStyleMenu.classList.toggle('hidden');
-    });
-
-    document.querySelectorAll('.map-style-option').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const targetBtn = e.currentTarget;
-        const styleKey = targetBtn.getAttribute('data-style');
-
-        if (mapTiles[styleKey]) {
-          map.removeLayer(activeTileLayer);
-          activeTileLayer = mapTiles[styleKey];
-          activeTileLayer.addTo(map);
-
-          document.querySelectorAll('.map-style-option').forEach(b => {
-            b.classList.remove('bg-amber-500/10', 'text-amber-300', 'border-amber-500/30');
-            b.classList.add('text-slate-300', 'border-transparent');
-            b.querySelector('.check-icon').classList.add('hidden');
-          });
-
-          targetBtn.classList.add('bg-amber-500/10', 'text-amber-300', 'border-amber-500/30');
-          targetBtn.classList.remove('border-transparent');
-          targetBtn.querySelector('.check-icon').classList.remove('hidden');
-
-          mapStyleMenu.classList.add('hidden');
-        }
-      });
-    });
-
-    // Modale
-    btnOpenModal.addEventListener('click', () => {
-      renderCustomCategoriesList();
-      modal.classList.remove('hidden');
-    });
-
-    btnCloseModal.addEventListener('click', () => {
-      modal.classList.add('hidden');
-    });
-
-    btnSaveCategory.addEventListener('click', () => {
-      const name = document.getElementById('custom-cat-name').value.trim();
-      const noradInput = document.getElementById('custom-cat-tle').value.trim();
-      if (name && noradInput) {
-        saveUserCustomCategory(name, noradInput);
-        document.getElementById('custom-cat-name').value = "";
-        document.getElementById('custom-cat-tle').value = "";
-        modal.classList.add('hidden');
-      }
-    });
-
-    // Lancement au chargement de la page
-    window.addEventListener('DOMContentLoaded', () => {
+    modeSelect.addEventListener('change', (e) => {
+      currentMode = e.target.value;
       renderCategoryDropdown();
     });
 
-    // Rafraîchissement automatique SGP4
-    setInterval(() => {
-      updatePosition(false);
-    }, 1000);
+    catSelect.addEventListener('change', (e) => loadSelectedCategory(e.target.value));
+
+    satSearch.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      filteredSatellites = currentSatellites.filter(s => 
+        s.OBJECT_NAME.toLowerCase().includes(query) || s.NORAD_CAT_ID.toLowerCase().includes(query)
+      );
+      renderSatelliteOptions(filteredSatellites);
+      if (filteredSatellites.length > 0) selectSatellite(0);
+    });
+
+    satSelect.addEventListener('change', (e) => selectSatellite(parseInt(e.target.value, 10)));
+
+    btnQuickFetch.addEventListener('click', () => quickFetchNorad(quickNoradInput.value));
+    quickNoradInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') quickFetchNorad(quickNoradInput.value);
+    });
+
+    btnRecenter.addEventListener('click', () => {
+      if (marker) map.setView(marker.getLatLng(), 4);
+      else map.setView([0, 0], 2);
+    });
+
+    btnRecenterMap.addEventListener('click', () => {
+      map.setView([0, 0], 2);
+    });
+
+    toggleGrid.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (!graticuleLayer) graticuleLayer = createGraticuleLayer();
+        map.addLayer(graticuleLayer);
+      } else {
+        if (graticuleLayer) map.removeLayer(graticuleLayer);
+      }
+    });
+
+	toggleNight.addEventListener('change', updateNightMask);
+
+    // Initialisation au chargement de la page
+    window.addEventListener('load', () => {
+      if (localFileInput) {
+        localFileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            localTleCache = evt.target.result;
+            statusEl.textContent = `Fichier TLE chargé (${file.name})`;
+            loadSelectedCategory(catSelect.value);
+          };
+          reader.readAsText(file);
+        });
+      }
+
+      renderCategoryDropdown();
+	  
+	  if (toggleGrid && toggleGrid.checked) {
+        graticuleLayer = createGraticuleLayer();
+        map.addLayer(graticuleLayer);
+      }
+
+      updateNightMask();
+      setInterval(() => {
+        updatePosition(false);
+        updateNightMask();
+      }, 1000);
+    });
   </script>
 </body>
 </html>
